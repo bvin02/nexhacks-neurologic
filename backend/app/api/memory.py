@@ -1,0 +1,303 @@
+"""
+Memory API
+
+Endpoints for memory management.
+"""
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from ..database import get_db
+from ..models.memory import MemoryAtom, MemoryVersion, MemoryType, MemoryStatus
+from ..models.evidence import MemoryEvidenceLink, EvidenceChunk
+from ..schemas.memory import (
+    MemoryCreate,
+    MemoryResponse,
+    MemoryVersionResponse,
+    MemoryLedgerResponse,
+    ConflictResolution,
+    EvidenceLinkResponse,
+    MemoryEdgeResponse,
+)
+from ..memory.conflict import ConflictDetector
+
+router = APIRouter(prefix="/projects/{project_id}", tags=["memory"])
+
+
+async def _memory_to_response(
+    memory: MemoryAtom,
+    db: AsyncSession,
+) -> MemoryResponse:
+    """Convert MemoryAtom to response schema with related data."""
+    # Get versions
+    version_stmt = (
+        select(MemoryVersion)
+        .where(MemoryVersion.memory_id == memory.id)
+        .order_by(MemoryVersion.version_number)
+    )
+    version_result = await db.execute(version_stmt)
+    versions = version_result.scalars().all()
+    
+    # Get evidence links
+    link_stmt = (
+        select(MemoryEvidenceLink)
+        .where(MemoryEvidenceLink.memory_id == memory.id)
+    )
+    link_result = await db.execute(link_stmt)
+    links = link_result.scalars().all()
+    
+    evidence_responses = []
+    for link in links:
+        # Get evidence chunk info
+        chunk_stmt = select(EvidenceChunk).where(EvidenceChunk.id == link.evidence_id)
+        chunk_result = await db.execute(chunk_stmt)
+        chunk = chunk_result.scalar_one_or_none()
+        
+        if chunk:
+            evidence_responses.append(EvidenceLinkResponse(
+                id=link.id,
+                evidence_id=link.evidence_id,
+                quote=link.quote,
+                confidence=link.confidence,
+                source_type=chunk.source_type.value,
+                source_ref=chunk.source_ref,
+            ))
+    
+    return MemoryResponse(
+        id=memory.id,
+        project_id=memory.project_id,
+        type=memory.type,
+        canonical_statement=memory.canonical_statement,
+        conflict_key=memory.conflict_key,
+        importance=memory.importance,
+        confidence=memory.confidence,
+        durability=memory.durability,
+        status=memory.status,
+        timestamp_start=memory.timestamp_start,
+        timestamp_end=memory.timestamp_end,
+        entities=memory.entities,
+        created_at=memory.created_at,
+        updated_at=memory.updated_at,
+        version_count=len(versions),
+        versions=[
+            MemoryVersionResponse(
+                id=v.id,
+                version_number=v.version_number,
+                statement=v.statement,
+                rationale=v.rationale,
+                changed_by=v.changed_by,
+                created_at=v.created_at,
+            )
+            for v in versions
+        ],
+        evidence_links=evidence_responses,
+    )
+
+
+@router.get("/ledger", response_model=MemoryLedgerResponse)
+async def get_ledger(
+    project_id: str,
+    include_superseded: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get the memory ledger for a project.
+    
+    Returns all memories grouped by type.
+    """
+    # Build query
+    conditions = [MemoryAtom.project_id == project_id]
+    if not include_superseded:
+        conditions.append(MemoryAtom.status.in_([MemoryStatus.ACTIVE, MemoryStatus.DISPUTED]))
+    
+    stmt = (
+        select(MemoryAtom)
+        .where(*conditions)
+        .order_by(MemoryAtom.created_at.desc())
+    )
+    
+    result = await db.execute(stmt)
+    memories = result.scalars().all()
+    
+    # Group by type
+    ledger = MemoryLedgerResponse()
+    type_map = {
+        MemoryType.DECISION: "decisions",
+        MemoryType.COMMITMENT: "commitments",
+        MemoryType.CONSTRAINT: "constraints",
+        MemoryType.GOAL: "goals",
+        MemoryType.FAILURE: "failures",
+        MemoryType.ASSUMPTION: "assumptions",
+        MemoryType.EXCEPTION: "exceptions",
+        MemoryType.PREFERENCE: "preferences",
+        MemoryType.BELIEF: "beliefs",
+    }
+    
+    disputed_count = 0
+    active_count = 0
+    
+    for memory in memories:
+        response = await _memory_to_response(memory, db)
+        attr = type_map.get(memory.type)
+        if attr:
+            getattr(ledger, attr).append(response)
+        
+        if memory.status == MemoryStatus.ACTIVE:
+            active_count += 1
+        elif memory.status == MemoryStatus.DISPUTED:
+            disputed_count += 1
+    
+    ledger.total_count = len(memories)
+    ledger.active_count = active_count
+    ledger.disputed_count = disputed_count
+    
+    return ledger
+
+
+@router.get("/memory/{memory_id}", response_model=MemoryResponse)
+async def get_memory(
+    project_id: str,
+    memory_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a specific memory by ID."""
+    stmt = select(MemoryAtom).where(
+        MemoryAtom.id == memory_id,
+        MemoryAtom.project_id == project_id,
+    )
+    result = await db.execute(stmt)
+    memory = result.scalar_one_or_none()
+    
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    
+    return await _memory_to_response(memory, db)
+
+
+@router.get("/memory/{memory_id}/versions", response_model=List[MemoryVersionResponse])
+async def get_memory_versions(
+    project_id: str,
+    memory_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all versions of a memory."""
+    # Verify memory exists and belongs to project
+    mem_stmt = select(MemoryAtom).where(
+        MemoryAtom.id == memory_id,
+        MemoryAtom.project_id == project_id,
+    )
+    mem_result = await db.execute(mem_stmt)
+    if not mem_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Memory not found")
+    
+    stmt = (
+        select(MemoryVersion)
+        .where(MemoryVersion.memory_id == memory_id)
+        .order_by(MemoryVersion.version_number)
+    )
+    result = await db.execute(stmt)
+    versions = result.scalars().all()
+    
+    return [
+        MemoryVersionResponse(
+            id=v.id,
+            version_number=v.version_number,
+            statement=v.statement,
+            rationale=v.rationale,
+            changed_by=v.changed_by,
+            created_at=v.created_at,
+        )
+        for v in versions
+    ]
+
+
+@router.post("/memory/{memory_id}/resolve", response_model=MemoryResponse)
+async def resolve_conflict(
+    project_id: str,
+    memory_id: str,
+    data: ConflictResolution,
+    db: AsyncSession = Depends(get_db),
+):
+    """Resolve a memory conflict."""
+    # Verify memory exists and is disputed
+    stmt = select(MemoryAtom).where(
+        MemoryAtom.id == memory_id,
+        MemoryAtom.project_id == project_id,
+    )
+    result = await db.execute(stmt)
+    memory = result.scalar_one_or_none()
+    
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    
+    # Resolve conflict
+    detector = ConflictDetector(db)
+    updated = await detector.resolve_conflict(
+        memory_id=memory_id,
+        action=data.action,
+        merged_statement=data.merged_statement,
+        rationale=data.rationale,
+    )
+    
+    return await _memory_to_response(updated, db)
+
+
+@router.post("/memory", response_model=MemoryResponse)
+async def create_memory(
+    project_id: str,
+    data: MemoryCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually create a memory."""
+    memory = MemoryAtom(
+        project_id=project_id,
+        type=data.type,
+        canonical_statement=data.canonical_statement,
+        conflict_key=data.conflict_key,
+        importance=data.importance,
+        confidence=data.confidence,
+        durability=data.durability,
+    )
+    db.add(memory)
+    await db.flush()
+    
+    # Create initial version
+    version = MemoryVersion(
+        memory_id=memory.id,
+        version_number=1,
+        statement=data.canonical_statement,
+        rationale=data.rationale,
+        changed_by="user",
+    )
+    db.add(version)
+    
+    await db.commit()
+    await db.refresh(memory)
+    
+    return await _memory_to_response(memory, db)
+
+
+@router.delete("/memory/{memory_id}")
+async def delete_memory(
+    project_id: str,
+    memory_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a memory (actually marks as superseded)."""
+    stmt = select(MemoryAtom).where(
+        MemoryAtom.id == memory_id,
+        MemoryAtom.project_id == project_id,
+    )
+    result = await db.execute(stmt)
+    memory = result.scalar_one_or_none()
+    
+    if not memory:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    
+    # Mark as superseded rather than deleting
+    memory.status = MemoryStatus.SUPERSEDED
+    await db.commit()
+    
+    return {"status": "superseded", "memory_id": memory_id}

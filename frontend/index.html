@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DecisionOS - Project Continuity Copilot</title>
+    <meta name="description" content="DecisionOS: A Project Continuity Copilot that persists decisions, commitments, and constraints across time.">
+    <link rel="stylesheet" href="index.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading State -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loader">
+                <div class="loader-ring"></div>
+                <div class="loader-text">Initializing DecisionOS...</div>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="app-container">
+            <!-- Sidebar -->
+            <aside id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <div class="logo">
+                        <div class="logo-icon">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <span class="logo-text">DecisionOS</span>
+                    </div>
+                </div>
+
+                <!-- Project Selector -->
+                <div class="project-selector">
+                    <label class="input-label">Active Project</label>
+                    <select id="project-select" class="select-input">
+                        <option value="">Select a project...</option>
+                    </select>
+                    <button id="new-project-btn" class="btn btn-primary btn-sm">
+                        <span class="btn-icon">+</span>
+                        New Project
+                    </button>
+                </div>
+
+                <!-- Navigation -->
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-view="chat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span>Chat</span>
+                    </button>
+                    <button class="nav-item" data-view="ledger">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span>Ledger</span>
+                    </button>
+                    <button class="nav-item" data-view="timeline">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                        <span>Timeline</span>
+                    </button>
+                </nav>
+
+                <!-- Memory Stats -->
+                <div id="memory-stats" class="memory-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-total">0</span>
+                        <span class="stat-label">Memories</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-active">0</span>
+                        <span class="stat-label">Active</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-disputed">0</span>
+                        <span class="stat-label">Disputed</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- Views -->
+                <div id="view-chat" class="view active">
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages">
+                            <div class="welcome-message">
+                                <div class="welcome-icon">🧠</div>
+                                <h2>Welcome to DecisionOS</h2>
+                                <p>Your Project Continuity Copilot. I remember your decisions, commitments, and constraints across sessions.</p>
+                                <div class="welcome-hints">
+                                    <div class="hint">💡 Make a commitment: "We will always use TypeScript"</div>
+                                    <div class="hint">⚡ Record a decision: "We chose React for the frontend"</div>
+                                    <div class="hint">🔒 Set a constraint: "We cannot use MongoDB"</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="chat-input-container">
+                            <div class="quality-selector">
+                                <button class="quality-btn" data-mode="fast">⚡ Fast</button>
+                                <button class="quality-btn active" data-mode="balanced">⚖️ Balanced</button>
+                                <button class="quality-btn" data-mode="thorough">🔬 Thorough</button>
+                            </div>
+                            <div class="input-wrapper">
+                                <textarea 
+                                    id="chat-input" 
+                                    class="chat-input" 
+                                    placeholder="Ask a question, make a decision, or set a commitment..."
+                                    rows="1"
+                                ></textarea>
+                                <button id="send-btn" class="send-btn" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="22" y1="2" x2="11" y2="13"/>
+                                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-ledger" class="view">
+                    <div class="ledger-container">
+                        <div class="ledger-header">
+                            <h2>Memory Ledger</h2>
+                            <p>All stored decisions, commitments, and constraints</p>
+                        </div>
+                        <div class="ledger-filters">
+                            <button class="filter-btn active" data-type="all">All</button>
+                            <button class="filter-btn" data-type="decision">Decisions</button>
+                            <button class="filter-btn" data-type="commitment">Commitments</button>
+                            <button class="filter-btn" data-type="constraint">Constraints</button>
+                            <button class="filter-btn" data-type="goal">Goals</button>
+                            <button class="filter-btn" data-type="failure">Failures</button>
+                        </div>
+                        <div id="ledger-content" class="ledger-content">
+                            <div class="empty-state">
+                                <div class="empty-icon">📋</div>
+                                <h3>No memories yet</h3>
+                                <p>Start chatting to build your project memory</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-timeline" class="view">
+                    <div class="timeline-container">
+                        <div class="timeline-header">
+                            <h2>Project Timeline</h2>
+                            <p>History of decisions and events</p>
+                        </div>
+                        <div id="timeline-content" class="timeline-content">
+                            <div class="empty-state">
+                                <div class="empty-icon">🕐</div>
+                                <h3>No events yet</h3>
+                                <p>Your project history will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Panel - Why Drawer -->
+            <aside id="why-drawer" class="why-drawer">
+                <div class="drawer-header">
+                    <h3>Why This Answer?</h3>
+                    <button id="close-drawer" class="close-btn">×</button>
+                </div>
+                <div id="drawer-content" class="drawer-content">
+                    <div class="drawer-section">
+                        <h4>Memories Used</h4>
+                        <div id="memories-used" class="memory-list"></div>
+                    </div>
+                    <div class="drawer-section">
+                        <h4>Commitments Checked</h4>
+                        <div id="commitments-checked" class="memory-list"></div>
+                    </div>
+                    <div class="drawer-section">
+                        <h4>Debug Info</h4>
+                        <div id="debug-info" class="debug-info"></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- New Project Modal -->
+        <div id="project-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Project</h3>
+                    <button class="close-btn" onclick="closeModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="input-label">Project Name</label>
+                        <input type="text" id="project-name" class="text-input" placeholder="My Awesome Project">
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label">Description (optional)</label>
+                        <textarea id="project-description" class="text-input" rows="3" placeholder="What is this project about?"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label">Goal (optional)</label>
+                        <input type="text" id="project-goal" class="text-input" placeholder="Build a world-class product">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button class="btn btn-primary" id="create-project-btn">Create Project</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Memory Detail Modal -->
+        <div id="memory-modal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3>Memory Details</h3>
+                    <button class="close-btn" onclick="closeMemoryModal()">×</button>
+                </div>
+                <div class="modal-body" id="memory-modal-content">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
