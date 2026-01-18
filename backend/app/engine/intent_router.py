@@ -147,16 +147,6 @@ class IntentRouter:
                 suggested_tier=ModelTier.MID.value,
             )
         
-        # Question detection
-        if "?" in message or lower.startswith(("what", "why", "how", "when", "where", "who", "can")):
-            return IntentClassification(
-                intent=Intent.QUESTION.value,
-                confidence=0.8,
-                requires_memory=True,
-                requires_enforcement=False,
-                suggested_tier=ModelTier.MID.value,
-            )
-        
         # Memory query detection
         memory_phrases = [
             "what did we decide", "what was the decision",
@@ -167,6 +157,16 @@ class IntentRouter:
             return IntentClassification(
                 intent=Intent.MEMORY_QUERY.value,
                 confidence=0.9,
+                requires_memory=True,
+                requires_enforcement=False,
+                suggested_tier=ModelTier.MID.value,
+            )
+
+        # Question detection
+        if "?" in message or lower.startswith(("what", "why", "how", "when", "where", "who", "can")):
+            return IntentClassification(
+                intent=Intent.QUESTION.value,
+                confidence=0.8,
                 requires_memory=True,
                 requires_enforcement=False,
                 suggested_tier=ModelTier.MID.value,
