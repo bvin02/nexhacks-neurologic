@@ -127,48 +127,6 @@ npx serve -l 3000
 
 Navigate to `http://localhost:3000`
 
----
-
-## 🎬 Demo Script (3 minutes)
-
-### Act 1: Create Project
-1. Click "New Project"
-2. Name: "Building a Startup"
-3. Goal: "Launch MVP in 3 months"
-
-### Act 2: Make Commitment
-Type in chat:
-> "We will only use PostgreSQL for our database. This is a hard commitment."
-
-Watch the system extract and store this as a **Commitment**.
-
-### Act 3: Make Decision
-Type:
-> "We chose React for the frontend because the team has more experience with it."
-
-Watch the system extract a **Decision** with rationale.
-
-### Act 4: Trigger Violation
-Type:
-> "Let's switch to MongoDB for better scalability."
-
-**Watch the system challenge you:**
->  This appears to conflict with existing commitments...
-> 
-> **COMMITMENT** (created Jan 16, 2026): "We will only use PostgreSQL for our database."
->
-> Options: Revise | Create Exception | Override
-
-### Act 5: Show Continuity
-1. Click the **"Why?"** button to see which memories were used
-2. Go to **Ledger** to see all stored memories
-3. Go to **Timeline** to see the history of events
-4. **Refresh the page**
-5. Ask: "What database are we using?"
-
-The system remembers! 
-
----
 
 ## Architecture
 
