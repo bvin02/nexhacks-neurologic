@@ -237,12 +237,24 @@
                                 <div class="input-wrapper">
                                     <textarea id="work-chat-input" class="chat-input"
                                         placeholder="Continue working on your task..." rows="1"></textarea>
+                                    <div class="save-tokens-toggle" id="save-tokens-toggle" title="Enable token optimization">
+                                        <svg class="save-tokens-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <path d="M12 6v6l4 2"/>
+                                        </svg>
+                                        <span class="save-tokens-label">Save Tokens</span>
+                                    </div>
                                     <button id="work-send-btn" class="send-btn" disabled>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <line x1="22" y1="2" x2="11" y2="13" />
                                             <polygon points="22 2 15 22 11 13 2 9 22 2" />
                                         </svg>
                                     </button>
+                                </div>
+                                <div id="token-stats" class="token-stats hidden">
+                                    <span class="token-stat">Before: <strong id="tokens-before">0</strong></span>
+                                    <span class="token-stat">After: <strong id="tokens-after">0</strong></span>
+                                    <span class="token-stat saved">Saved: <strong id="tokens-saved">0</strong></span>
                                 </div>
                             </div>
                         </div>

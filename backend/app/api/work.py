@@ -35,6 +35,7 @@ from ..llm import get_llm_provider, get_model_for_task
 from ..prompts.response import RESPONSE_GENERATOR_SYSTEM
 from ..tracer import trace_section, trace_input, trace_parse, trace_step, trace_pass, trace_output, trace_call, trace_result
 from ..events import get_event_publisher, EventType
+from ..services.token_compression import get_token_compression_service
 
 logger = logging.getLogger(__name__)
 
@@ -312,6 +313,46 @@ Conversation History:
 
 Respond helpfully to continue the work session. Be practical and focused on the task."""
 
+    # Token compression stats (populated only if save_tokens is enabled)
+    tokens_before = None
+    tokens_after = None
+    tokens_saved = None
+    
+    # Apply token compression if save_tokens is enabled
+    if data.save_tokens:
+        print("\n" + "=" * 60)
+        print("💡 SAVE TOKENS MODE ENABLED")
+        print("=" * 60)
+        print(f"📝 Original prompt length: {len(prompt)} characters")
+        
+        trace_section("Token Compression")
+        trace_step("api.work", "Compressing prompt with Token Company API")
+        
+        compression_service = get_token_compression_service()
+        compression_result = await compression_service.compress(
+            text=prompt,
+            aggressiveness=0.5,  # Moderate compression
+        )
+        
+        # Use compressed prompt
+        prompt = compression_result.output
+        tokens_before = compression_result.original_tokens
+        tokens_after = compression_result.compressed_tokens
+        tokens_saved = compression_result.tokens_saved
+        
+        print(f"\n📤 COMPRESSION APPLIED TO WORK API:")
+        print(f"   • Tokens Before: {tokens_before}")
+        print(f"   • Tokens After:  {tokens_after}")
+        print(f"   • Tokens Saved:  {tokens_saved}")
+        print(f"   • Compressed prompt length: {len(prompt)} characters")
+        print("=" * 60 + "\n")
+        
+        trace_output("api.work", "tokens_before", tokens_before)
+        trace_output("api.work", "tokens_after", tokens_after)
+        trace_output("api.work", "tokens_saved", tokens_saved)
+    else:
+        print("\n💤 Save Tokens mode is OFF - skipping compression")
+
     # Generate response
     trace_call("api.work", "llm.generate_text", f"mode={data.mode}")
     llm = get_llm_provider()
@@ -345,6 +386,9 @@ Respond helpfully to continue the work session. Be practical and focused on the 
             commitments_checked=[],
             violated=False,
             model_tier="mid",
+            tokens_before_compression=tokens_before,
+            tokens_after_compression=tokens_after,
+            tokens_saved=tokens_saved,
         ),
     )
 

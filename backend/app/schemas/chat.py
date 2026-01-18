@@ -50,6 +50,11 @@ class DebugMetadata(BaseModel):
     latency_ms: int = 0
     token_count: int = 0
     
+    # Token compression stats (only populated when save_tokens is enabled)
+    tokens_before_compression: Optional[int] = None
+    tokens_after_compression: Optional[int] = None
+    tokens_saved: Optional[int] = None
+    
     model_config = {"protected_namespaces": ()}
 
 
@@ -99,6 +104,7 @@ class WorkSessionMessageRequest(BaseModel):
     """Request to send a message in a work session."""
     message: str = Field(..., min_length=1)
     mode: Literal["fast", "balanced", "thorough"] = "balanced"
+    save_tokens: bool = False  # When true, compress prompt before LLM call
     
     model_config = {"extra": "forbid"}
 

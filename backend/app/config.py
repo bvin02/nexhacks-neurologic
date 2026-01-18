@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     gemini_api_key: str = ""
     
+    # Token Company API Key (optional - for token optimization)
+    token_company_api_key: str = ""
+    
     # Database
     database_url: str = "sqlite+aiosqlite:///./decisionos.db"
     

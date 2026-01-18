@@ -27,6 +27,7 @@ const state = {
     workSession: null, // {session_id, task_description}
     workMessages: [],
     workChatMode: 'balanced',
+    saveTokensEnabled: false, // Token optimization toggle
 
     // Files state
     files: [],
@@ -70,6 +71,11 @@ const elements = {
     workChatInput: document.getElementById('work-chat-input'),
     workSendBtn: document.getElementById('work-send-btn'),
     taskCompletedBtn: document.getElementById('task-completed-btn'),
+    saveTokensToggle: document.getElementById('save-tokens-toggle'),
+    tokenStats: document.getElementById('token-stats'),
+    tokensBefore: document.getElementById('tokens-before'),
+    tokensAfter: document.getElementById('tokens-after'),
+    tokensSaved: document.getElementById('tokens-saved'),
 
     // Task Modal
     taskModal: document.getElementById('task-modal'),
@@ -409,9 +415,9 @@ const workApi = {
     }),
     getActive: (projectId) => api(`/projects/${projectId}/work/active`),
     getMessages: (projectId, sessionId) => api(`/projects/${projectId}/work/${sessionId}/messages`),
-    sendMessage: (projectId, sessionId, message, mode) => api(`/projects/${projectId}/work/${sessionId}/message`, {
+    sendMessage: (projectId, sessionId, message, mode, saveTokens = false) => api(`/projects/${projectId}/work/${sessionId}/message`, {
         method: 'POST',
-        body: { message, mode },
+        body: { message, mode, save_tokens: saveTokens },
     }),
     endSession: (projectId, sessionId) => api(`/projects/${projectId}/work/${sessionId}/end`, {
         method: 'POST',
@@ -692,6 +698,19 @@ function initWorkChat() {
 
     // Task completed button
     elements.taskCompletedBtn.addEventListener('click', endWorkSession);
+    
+    // Save Tokens toggle
+    elements.saveTokensToggle.addEventListener('click', toggleSaveTokens);
+}
+
+function toggleSaveTokens() {
+    state.saveTokensEnabled = !state.saveTokensEnabled;
+    elements.saveTokensToggle.classList.toggle('active', state.saveTokensEnabled);
+    
+    // Hide token stats when toggling off
+    if (!state.saveTokensEnabled) {
+        elements.tokenStats.classList.add('hidden');
+    }
 }
 
 function openTaskModal() {
@@ -881,6 +900,9 @@ async function sendWorkMessage() {
 
     elements.workChatInput.value = '';
     handleWorkInputChange();
+    
+    // Hide token stats when sending new message
+    elements.tokenStats.classList.add('hidden');
 
     // Add user message
     state.workMessages.push({ role: 'user', content: message });
@@ -894,7 +916,8 @@ async function sendWorkMessage() {
             state.currentProject.id,
             state.workSession.session_id,
             message,
-            state.workChatMode
+            state.workChatMode,
+            state.saveTokensEnabled
         );
 
         removeWorkTypingIndicator(typingId);
@@ -906,6 +929,14 @@ async function sendWorkMessage() {
             memoriesUsed: response.debug?.memory_used || [],
         });
         state.lastDebugInfo = response.debug;
+
+        // Display token stats if save_tokens was enabled
+        if (state.saveTokensEnabled && response.debug?.tokens_before_compression != null) {
+            elements.tokensBefore.textContent = response.debug.tokens_before_compression;
+            elements.tokensAfter.textContent = response.debug.tokens_after_compression;
+            elements.tokensSaved.textContent = response.debug.tokens_saved;
+            elements.tokenStats.classList.remove('hidden');
+        }
 
         renderWorkMessages();
 

@@ -763,6 +763,77 @@ body {
     height: 20px;
 }
 
+/* Save Tokens Toggle */
+.save-tokens-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.save-tokens-toggle:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+}
+
+.save-tokens-toggle.active {
+    background: rgba(0, 245, 212, 0.15);
+    border-color: var(--primary-cyan);
+    color: var(--primary-cyan);
+}
+
+.save-tokens-toggle.active .save-tokens-icon {
+    color: var(--primary-cyan);
+}
+
+.save-tokens-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    transition: color var(--transition-fast);
+}
+
+.save-tokens-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: inherit;
+}
+
+/* Token Stats Display */
+.token-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    margin-top: var(--spacing-sm);
+}
+
+.token-stats.hidden {
+    display: none;
+}
+
+.token-stat {
+    color: var(--text-secondary);
+}
+
+.token-stat strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.token-stat.saved strong {
+    color: var(--primary-green);
+}
+
 /* ================================================
    Ledger View
    ================================================ */
