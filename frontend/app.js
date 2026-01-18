@@ -1034,12 +1034,20 @@ async function endWorkSession() {
     const confirmed = confirm('End this work session? Memories will be extracted and saved to the project.');
     if (!confirmed) return;
 
-    try {
-        showToast('Ending session and extracting memories...', 'info');
+    // Store session info before clearing
+    const sessionId = state.workSession.session_id;
+    
+    // Immediately reset UI to start task view
+    state.workSession = null;
+    state.workMessages = [];
+    showStartTaskUI();
+    
+    showToast('Ending session and extracting memories...', 'info');
 
+    try {
         const response = await workApi.endSession(
             state.currentProject.id,
-            state.workSession.session_id
+            sessionId
         );
 
         showToast(`Session completed! ${response.memories_created} memories saved.`, 'success');
@@ -1049,9 +1057,6 @@ async function endWorkSession() {
         state.currentProject = project;
         updateStats(project);
         loadLedger();
-
-        // Return to start task screen
-        showStartTaskUI();
 
     } catch (error) {
         console.error('Failed to end work session:', error);
