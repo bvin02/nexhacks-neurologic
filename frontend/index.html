@@ -43,13 +43,32 @@
                 <!-- Project Selector -->
                 <div class="project-selector">
                     <label class="input-label">Active Project</label>
-                    <select id="project-select" class="select-input">
-                        <option value="">Select a project...</option>
-                    </select>
+                    <div class="custom-select" id="project-select-wrapper">
+                        <div class="custom-select-trigger" id="project-select-trigger">
+                            <span class="custom-select-value">Select a project...</span>
+                            <svg class="custom-select-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                        <div class="custom-select-options" id="project-select-options">
+                            <!-- Options populated by JS -->
+                        </div>
+                    </div>
                     <button id="new-project-btn" class="btn btn-primary btn-sm">
                         <span class="btn-icon">+</span>
                         New Project
                     </button>
+                </div>
+
+                <!-- Project Context Menu -->
+                <div id="project-context-menu" class="context-menu">
+                    <div class="context-menu-item danger" onclick="deleteProjectFromMenu()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span>Delete Project</span>
+                    </div>
                 </div>
 
                 <!-- Navigation -->
@@ -269,7 +288,6 @@
                             </div>
                             <div id="files-content" class="files-content">
                                 <div class="empty-state">
-                                    <div class="empty-icon">📁</div>
                                     <h3>No files yet</h3>
                                     <p>Generate reports from your work sessions to see them here</p>
                                 </div>
@@ -285,7 +303,6 @@
                             </div>
                             <div id="timeline-content" class="timeline-content">
                                 <div class="empty-state">
-                                    <div class="empty-icon">🕐</div>
                                     <h3>No events yet</h3>
                                     <p>Your project history will appear here</p>
                                 </div>

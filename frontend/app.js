@@ -36,7 +36,10 @@ const state = {
 // DOM Elements
 const elements = {
     loadingOverlay: document.getElementById('loading-overlay'),
-    projectSelect: document.getElementById('project-select'),
+    projectSelectWrapper: document.getElementById('project-select-wrapper'),
+    projectSelectTrigger: document.getElementById('project-select-trigger'),
+    projectSelectOptions: document.getElementById('project-select-options'),
+    projectContextMenu: document.getElementById('project-context-menu'),
     newProjectBtn: document.getElementById('new-project-btn'),
     whyDrawer: document.getElementById('why-drawer'),
     closeDrawer: document.getElementById('close-drawer'),
@@ -455,8 +458,8 @@ function initializeApp() {
         });
     });
 
-    // Project management
-    elements.projectSelect.addEventListener('change', handleProjectChange);
+    // Project management - Custom select
+    initProjectSelect();
     elements.newProjectBtn.addEventListener('click', openProjectModal);
     document.getElementById('create-project-btn').addEventListener('click', createProject);
 
@@ -1118,16 +1121,9 @@ async function loadProjects() {
         const response = await projectsApi.list();
         state.projects = response.projects;
 
-        elements.projectSelect.innerHTML = '<option value="">Select a project...</option>';
-        state.projects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project.id;
-            option.textContent = project.name;
-            elements.projectSelect.appendChild(option);
-        });
+        renderProjectOptions();
 
         if (state.projects.length > 0) {
-            elements.projectSelect.value = state.projects[0].id;
             await selectProject(state.projects[0].id);
         }
 
@@ -1137,6 +1133,123 @@ async function loadProjects() {
         showToast('Failed to connect to server. Make sure the backend is running.', 'error');
         elements.loadingOverlay.classList.add('hidden');
     }
+}
+
+// Custom Project Select
+let projectContextMenuTarget = null;
+
+function initProjectSelect() {
+    // Toggle dropdown on click
+    elements.projectSelectTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        elements.projectSelectWrapper.classList.toggle('open');
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!elements.projectSelectWrapper.contains(e.target)) {
+            elements.projectSelectWrapper.classList.remove('open');
+        }
+    });
+    
+    // Close project context menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!elements.projectContextMenu.contains(e.target)) {
+            elements.projectContextMenu.classList.remove('open');
+        }
+    });
+}
+
+function renderProjectOptions() {
+    if (state.projects.length === 0) {
+        elements.projectSelectOptions.innerHTML = `
+            <div class="custom-select-empty">No projects yet</div>
+        `;
+        updateProjectSelectValue(null);
+        return;
+    }
+    
+    elements.projectSelectOptions.innerHTML = state.projects.map(project => `
+        <div class="custom-select-option ${state.currentProject?.id === project.id ? 'selected' : ''}" 
+             data-value="${project.id}"
+             onclick="handleProjectOptionClick('${project.id}')"
+             oncontextmenu="showProjectContextMenu(event, '${project.id}')">
+            <span class="project-name">${project.name}</span>
+        </div>
+    `).join('');
+}
+
+function updateProjectSelectValue(projectId) {
+    const valueEl = elements.projectSelectTrigger.querySelector('.custom-select-value');
+    if (!projectId) {
+        valueEl.textContent = 'Select a project...';
+        valueEl.classList.add('placeholder');
+    } else {
+        const project = state.projects.find(p => p.id === projectId);
+        valueEl.textContent = project ? project.name : 'Select a project...';
+        valueEl.classList.toggle('placeholder', !project);
+    }
+}
+
+async function handleProjectOptionClick(projectId) {
+    elements.projectSelectWrapper.classList.remove('open');
+    if (projectId) {
+        await selectProject(projectId);
+        renderProjectOptions(); // Update selected state
+    }
+}
+
+function showProjectContextMenu(e, projectId) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    projectContextMenuTarget = projectId;
+    
+    const menu = elements.projectContextMenu;
+    menu.style.left = `${e.clientX}px`;
+    menu.style.top = `${e.clientY}px`;
+    menu.classList.add('open');
+}
+
+async function deleteProjectFromMenu() {
+    if (!projectContextMenuTarget) return;
+    
+    elements.projectContextMenu.classList.remove('open');
+    
+    const project = state.projects.find(p => p.id === projectContextMenuTarget);
+    if (!project) return;
+    
+    const confirmed = confirm(`Delete project "${project.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+    
+    try {
+        await projectsApi.delete(projectContextMenuTarget);
+        showToast(`Project "${project.name}" deleted`, 'success');
+        
+        // Reload projects
+        const response = await projectsApi.list();
+        state.projects = response.projects;
+        
+        // If deleted project was current, reset
+        if (state.currentProject?.id === projectContextMenuTarget) {
+            state.currentProject = null;
+            if (state.projects.length > 0) {
+                await selectProject(state.projects[0].id);
+            } else {
+                updateProjectSelectValue(null);
+                resetProjectChat();
+                showStartTaskUI();
+            }
+        }
+        
+        renderProjectOptions();
+        
+    } catch (error) {
+        console.error('Failed to delete project:', error);
+        showToast('Failed to delete project: ' + error.message, 'error');
+    }
+    
+    projectContextMenuTarget = null;
 }
 
 // ================================================
@@ -1165,22 +1278,14 @@ function switchView(viewName) {
 // Project Management
 // ================================================
 
-async function handleProjectChange(e) {
-    const projectId = e.target.value;
-    if (projectId) {
-        await selectProject(projectId);
-    } else {
-        state.currentProject = null;
-        resetProjectChat();
-        showStartTaskUI();
-    }
-}
-
 async function selectProject(projectId) {
     try {
         const project = await projectsApi.get(projectId);
         state.currentProject = project;
 
+        // Update custom select display
+        updateProjectSelectValue(projectId);
+        
         updateStats(project);
         resetProjectChat();
         await checkForActiveWorkSession();
@@ -1226,12 +1331,8 @@ async function createProject() {
         const project = await projectsApi.create({ name, description, goal });
         state.projects.push(project);
 
-        const option = document.createElement('option');
-        option.value = project.id;
-        option.textContent = project.name;
-        elements.projectSelect.appendChild(option);
-
-        elements.projectSelect.value = project.id;
+        // Update custom select
+        renderProjectOptions();
         await selectProject(project.id);
 
         closeModal();
@@ -1508,7 +1609,6 @@ function renderTimeline() {
     if (!state.timeline || state.timeline.length === 0) {
         elements.timelineContent.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">🕐</div>
                 <h3>No events yet</h3>
                 <p>Your project history will appear here</p>
             </div>
