@@ -21,6 +21,7 @@ class Intent(str, Enum):
     COMMITMENT = "commitment"       # Making a commitment
     CONSTRAINT = "constraint"       # Setting a constraint
     GOAL = "goal"                   # Setting or discussing goals
+    FAILURE = "failure"             # Reporting something that didn't work
     TASK = "task"                   # Task management
     CLARIFICATION = "clarification" # Clarifying something
     GREETING = "greeting"           # Small talk
@@ -59,6 +60,7 @@ class IntentRouter:
         Intent.COMMITMENT: ModelTier.HEAVY,
         Intent.CONSTRAINT: ModelTier.HEAVY,
         Intent.GOAL: ModelTier.MID,
+        Intent.FAILURE: ModelTier.MID,
         Intent.TASK: ModelTier.CHEAP,
         Intent.MEMORY_QUERY: ModelTier.MID,
         Intent.CONFLICT: ModelTier.HEAVY,
@@ -71,6 +73,7 @@ class IntentRouter:
         Intent.COMMITMENT,
         Intent.CONSTRAINT,
         Intent.GOAL,
+        Intent.FAILURE,
     }
     
     # Intents that don't need memory
@@ -141,6 +144,38 @@ class IntentRouter:
         if any(p in lower for p in decision_phrases):
             return IntentClassification(
                 intent=Intent.DECISION.value,
+                confidence=0.8,
+                requires_memory=True,
+                requires_enforcement=True,
+                suggested_tier=ModelTier.MID.value,
+            )
+        
+        # Goal detection
+        goal_phrases = [
+            "goal is", "objective is", "aim to", "target is",
+            "we want to", "trying to achieve", "our goal", "the goal",
+            "mission is", "purpose is", "intend to", "plan to achieve",
+            "by end of", "by q1", "by q2", "by q3", "by q4"
+        ]
+        if any(p in lower for p in goal_phrases):
+            return IntentClassification(
+                intent=Intent.GOAL.value,
+                confidence=0.8,
+                requires_memory=True,
+                requires_enforcement=True,
+                suggested_tier=ModelTier.MID.value,
+            )
+        
+        # Failure detection
+        failure_phrases = [
+            "didn't work", "failed", "doesn't work", "broken",
+            "tried and", "attempted but", "couldn't get", "unable to",
+            "gave up on", "abandoned", "scrapped", "reverted",
+            "rolled back", "backed out", "won't work", "not working"
+        ]
+        if any(p in lower for p in failure_phrases):
+            return IntentClassification(
+                intent=Intent.FAILURE.value,
                 confidence=0.8,
                 requires_memory=True,
                 requires_enforcement=True,
