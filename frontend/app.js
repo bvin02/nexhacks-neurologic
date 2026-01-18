@@ -1366,6 +1366,11 @@ async function openMemoryDetail(memoryId) {
                     <span class="memory-status ${memory.status}">${memory.status}</span>
                 </div>
                 
+                <div style="margin-bottom: 1rem; padding: 0.5rem; background: var(--bg-tertiary); border-radius: 6px; font-family: 'JetBrains Mono', monospace;">
+                    <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Memory ID</span>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); word-break: break-all;">${memory.id}</div>
+                </div>
+                
                 <h4 style="margin-bottom: 0.5rem;">Statement</h4>
                 <p style="margin-bottom: 1rem;">${escapeHtml(memory.canonical_statement)}</p>
                 
@@ -1398,6 +1403,18 @@ async function openMemoryDetail(memoryId) {
                         `).join('')}
                     </div>
                 ` : ''}
+                
+                <div style="border-top: 1px solid var(--border-default); padding-top: 1rem; margin-top: 1rem;">
+                    <button onclick="deleteMemory('${memory.id}')" class="btn btn-danger" style="background: var(--primary-red); border-color: var(--primary-red); display: flex; align-items: center; gap: 0.5rem;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            <line x1="10" y1="11" x2="10" y2="17"/>
+                            <line x1="14" y1="11" x2="14" y2="17"/>
+                        </svg>
+                        Delete Memory
+                    </button>
+                </div>
             </div>
         `;
 
@@ -1405,6 +1422,33 @@ async function openMemoryDetail(memoryId) {
     } catch (error) {
         console.error('Failed to load memory:', error);
         showToast('Failed to load memory details', 'error');
+    }
+}
+
+async function deleteMemory(memoryId) {
+    if (!state.currentProject) return;
+    
+    if (!confirm('Are you sure you want to delete this memory? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/memory/${memoryId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to delete memory');
+        }
+        
+        showToast('Memory deleted successfully', 'success');
+        closeMemoryModal();
+        await loadLedger();
+        
+    } catch (error) {
+        console.error('Failed to delete memory:', error);
+        showToast('Failed to delete memory: ' + error.message, 'error');
     }
 }
 
