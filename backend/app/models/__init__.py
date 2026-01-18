@@ -4,6 +4,7 @@ from .memory import MemoryAtom, MemoryVersion, MemoryEdge
 from .evidence import EvidenceChunk, MemoryEvidenceLink
 from .ops_log import OpsLog
 from .work_session import WorkSession, WorkMessage
+from .report import Report
 
 __all__ = [
     "Project",
@@ -15,4 +16,5 @@ __all__ = [
     "OpsLog",
     "WorkSession",
     "WorkMessage",
+    "Report",
 ]

@@ -366,8 +366,13 @@ async def resolve_ingestion_conflict(
         # Mark existing as disputed
         existing.status = MemoryStatus.DISPUTED
         
+        # Generate UUID explicitly so we have it before flush
+        import uuid
+        new_memory_id = str(uuid.uuid4())
+        
         # NOW create the new memory (it wasn't created before)
         new_memory = MemoryAtom(
+            id=new_memory_id,  # Set ID explicitly
             project_id=project_id,
             type=MemoryType(data.new_memory.type),
             canonical_statement=data.new_memory.statement,
@@ -377,11 +382,10 @@ async def resolve_ingestion_conflict(
             status=MemoryStatus.ACTIVE,
         )
         db.add(new_memory)
-        await db.flush()
         
         # Create initial version
         version = MemoryVersion(
-            memory_id=new_memory.id,
+            memory_id=new_memory_id,  # Use the explicit ID
             version_number=1,
             statement=data.new_memory.statement,
             rationale=f"Created via conflict resolution, overriding: {existing.canonical_statement[:100]}",
@@ -389,6 +393,7 @@ async def resolve_ingestion_conflict(
         )
         db.add(version)
         
+        # Single commit for all changes
         await db.commit()
         await db.refresh(new_memory)
         

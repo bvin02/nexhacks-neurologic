@@ -77,6 +77,12 @@
                         </svg>
                         <span>Ledger</span>
                     </button>
+                    <button class="nav-item" data-view="files">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span>Files</span>
+                    </button>
                     <button class="nav-item" data-view="timeline">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <circle cx="12" cy="12" r="10" />
@@ -196,6 +202,13 @@
                             <div class="work-chat-messages-wrapper">
                                 <div id="work-chat-messages" class="chat-messages">
                                 </div>
+                                <button id="download-report-btn" class="download-report-btn" title="Download Report">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="7 10 12 15 17 10" />
+                                        <line x1="12" y1="15" x2="12" y2="3" />
+                                    </svg>
+                                </button>
                                 <button id="task-completed-btn" class="btn btn-success task-completed-btn">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polyline points="20 6 9 17 4 12" />
@@ -250,6 +263,22 @@
                                     <div class="empty-icon"></div>
                                     <h3>No memories yet</h3>
                                     <p>Start chatting to build your project memory</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="view-files" class="view">
+                        <div class="files-container">
+                            <div class="files-header">
+                                <h2>Files</h2>
+                                <p>Generated reports and documents</p>
+                            </div>
+                            <div id="files-content" class="files-content">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📁</div>
+                                    <h3>No files yet</h3>
+                                    <p>Generate reports from your work sessions to see them here</p>
                                 </div>
                             </div>
                         </div>
@@ -476,6 +505,70 @@
                 <div class="modal-footer">
                     <button class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
                     <button class="btn btn-primary" id="begin-task-btn">Begin Task</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Name Modal -->
+        <div id="report-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Generate Report</h3>
+                    <button class="close-btn" onclick="closeReportModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="input-label">File Name</label>
+                        <input type="text" id="report-name-input" class="text-input" 
+                            placeholder="e.g., project-spec-v1" />
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label">Description (optional)</label>
+                        <textarea id="report-description-input" class="text-input" rows="2"
+                            placeholder="Brief description of this report..."></textarea>
+                    </div>
+                    <div class="task-modal-hint">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="16" x2="12" y2="12" />
+                            <line x1="12" y1="8" x2="12.01" y2="8" />
+                        </svg>
+                        <span>A report will be generated from your conversation showing the final outcome.</span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeReportModal()">Cancel</button>
+                    <button class="btn btn-primary" id="generate-report-btn">Generate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Context Menu -->
+        <div id="file-context-menu" class="context-menu">
+            <div class="context-menu-item" onclick="renameFile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                </svg>
+                Rename
+            </div>
+            <div class="context-menu-item danger" onclick="deleteFile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                Delete
+            </div>
+        </div>
+
+        <!-- File Viewer Modal -->
+        <div id="file-viewer-modal" class="modal file-viewer-modal">
+            <div class="modal-content file-viewer-content">
+                <div class="modal-header">
+                    <h3 id="file-viewer-title">File</h3>
+                    <button class="close-btn" onclick="closeFileViewer()">×</button>
+                </div>
+                <div class="modal-body file-viewer-body">
+                    <div id="file-viewer-content" class="markdown-content"></div>
                 </div>
             </div>
         </div>

@@ -27,6 +27,10 @@ const state = {
     workSession: null, // {session_id, task_description}
     workMessages: [],
     workChatMode: 'balanced',
+
+    // Files state
+    files: [],
+    selectedFile: null,
 };
 
 // DOM Elements
@@ -68,6 +72,24 @@ const elements = {
     taskModal: document.getElementById('task-modal'),
     taskDescriptionInput: document.getElementById('task-description-input'),
     beginTaskBtn: document.getElementById('begin-task-btn'),
+
+    // Report Modal
+    reportModal: document.getElementById('report-modal'),
+    reportNameInput: document.getElementById('report-name-input'),
+    reportDescriptionInput: document.getElementById('report-description-input'),
+    generateReportBtn: document.getElementById('generate-report-btn'),
+    downloadReportBtn: document.getElementById('download-report-btn'),
+
+    // Files View
+    filesContent: document.getElementById('files-content'),
+
+    // File Viewer Modal
+    fileViewerModal: document.getElementById('file-viewer-modal'),
+    fileViewerTitle: document.getElementById('file-viewer-title'),
+    fileViewerContent: document.getElementById('file-viewer-content'),
+
+    // Context Menu
+    fileContextMenu: document.getElementById('file-context-menu'),
 
     // Observability Panel
     observabilityNotifications: document.getElementById('observability-notifications'),
@@ -446,6 +468,9 @@ function initializeApp() {
 
     // Work Chat
     initWorkChat();
+
+    // Files
+    initFiles();
 
     // Load projects
     loadProjects();
@@ -1126,6 +1151,8 @@ function switchView(viewName) {
         loadLedger();
     } else if (viewName === 'timeline' && state.currentProject) {
         loadTimeline();
+    } else if (viewName === 'files' && state.currentProject) {
+        loadFiles();
     }
 }
 
@@ -1657,6 +1684,231 @@ function dismissViolation() {
 
 async function createException() {
     showToast('Exception creation coming soon', 'info');
+}
+
+// ================================================
+// Files & Reports
+// ================================================
+
+function initFiles() {
+    // Download report button
+    elements.downloadReportBtn?.addEventListener('click', openReportModal);
+    
+    // Generate report button
+    elements.generateReportBtn?.addEventListener('click', generateReport);
+    
+    // Report name input - Enter key
+    elements.reportNameInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            generateReport();
+        }
+    });
+    
+    // Close context menu on click outside
+    document.addEventListener('click', (e) => {
+        if (!elements.fileContextMenu?.contains(e.target)) {
+            closeContextMenu();
+        }
+    });
+}
+
+function openReportModal() {
+    if (!state.workSession) {
+        showToast('No active work session to generate report from', 'error');
+        return;
+    }
+    elements.reportNameInput.value = '';
+    elements.reportDescriptionInput.value = '';
+    elements.reportModal.classList.add('open');
+    elements.reportNameInput.focus();
+}
+
+function closeReportModal() {
+    elements.reportModal.classList.remove('open');
+}
+
+async function generateReport() {
+    const name = elements.reportNameInput.value.trim();
+    if (!name) {
+        showToast('Please enter a file name', 'error');
+        return;
+    }
+    
+    if (!state.workSession || !state.currentProject) {
+        showToast('No active session', 'error');
+        return;
+    }
+    
+    const description = elements.reportDescriptionInput.value.trim() || null;
+    
+    closeReportModal();
+    showToast('Generating report...', 'info');
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/reports/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                description: description,
+                session_id: state.workSession.session_id
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to generate report');
+        }
+        
+        const report = await response.json();
+        showToast('Report generated successfully!', 'success');
+        
+        // Navigate to files view
+        switchView('files');
+        
+    } catch (error) {
+        console.error('Failed to generate report:', error);
+        showToast('Failed to generate report: ' + error.message, 'error');
+    }
+}
+
+async function loadFiles() {
+    if (!state.currentProject) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/reports`);
+        if (!response.ok) throw new Error('Failed to load files');
+        
+        const data = await response.json();
+        state.files = data.reports;
+        renderFiles();
+        
+    } catch (error) {
+        console.error('Failed to load files:', error);
+        showToast('Failed to load files', 'error');
+    }
+}
+
+function renderFiles() {
+    if (!state.files || state.files.length === 0) {
+        elements.filesContent.innerHTML = '';
+        return;
+    }
+    
+    elements.filesContent.innerHTML = state.files.map(file => `
+        <div class="file-card" data-id="${file.id}" onclick="openFile('${file.id}')" oncontextmenu="showFileContextMenu(event, '${file.id}')">
+            <div class="file-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                </svg>
+            </div>
+            <div class="file-name">${escapeHtml(file.name)}</div>
+            <div class="file-date">${formatDate(file.created_at)}</div>
+        </div>
+    `).join('');
+}
+
+async function openFile(fileId) {
+    if (!state.currentProject) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/reports/${fileId}`);
+        if (!response.ok) throw new Error('Failed to load file');
+        
+        const file = await response.json();
+        state.selectedFile = file;
+        
+        elements.fileViewerTitle.textContent = file.name;
+        
+        // Render markdown content
+        if (typeof marked !== 'undefined') {
+            elements.fileViewerContent.innerHTML = marked.parse(file.content);
+        } else {
+            elements.fileViewerContent.innerHTML = `<pre>${escapeHtml(file.content)}</pre>`;
+        }
+        
+        elements.fileViewerModal.classList.add('open');
+        
+    } catch (error) {
+        console.error('Failed to open file:', error);
+        showToast('Failed to open file', 'error');
+    }
+}
+
+function closeFileViewer() {
+    elements.fileViewerModal.classList.remove('open');
+    state.selectedFile = null;
+}
+
+function showFileContextMenu(event, fileId) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    state.selectedFile = { id: fileId };
+    
+    const menu = elements.fileContextMenu;
+    menu.style.left = `${event.clientX}px`;
+    menu.style.top = `${event.clientY}px`;
+    menu.classList.add('open');
+}
+
+function closeContextMenu() {
+    elements.fileContextMenu?.classList.remove('open');
+}
+
+async function renameFile() {
+    closeContextMenu();
+    
+    if (!state.selectedFile || !state.currentProject) return;
+    
+    const newName = prompt('Enter new file name:');
+    if (!newName || !newName.trim()) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/reports/${state.selectedFile.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName.trim() })
+        });
+        
+        if (!response.ok) throw new Error('Failed to rename file');
+        
+        showToast('File renamed', 'success');
+        loadFiles();
+        
+    } catch (error) {
+        console.error('Failed to rename file:', error);
+        showToast('Failed to rename file', 'error');
+    }
+}
+
+async function deleteFile() {
+    closeContextMenu();
+    
+    if (!state.selectedFile || !state.currentProject) return;
+    
+    if (!confirm('Are you sure you want to delete this file?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/reports/${state.selectedFile.id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete file');
+        
+        showToast('File deleted', 'success');
+        state.selectedFile = null;
+        loadFiles();
+        
+    } catch (error) {
+        console.error('Failed to delete file:', error);
+        showToast('Failed to delete file', 'error');
+    }
 }
 
 // Add animation styles

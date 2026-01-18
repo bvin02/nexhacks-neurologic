@@ -15,20 +15,26 @@ class Base(DeclarativeBase):
     pass
 
 
-# Create async engine
+# Create async engine with connection pooling settings for SQLite
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,
     future=True,
+    connect_args={
+        "timeout": 30,  # Wait up to 30 seconds for locks
+        "check_same_thread": False,
+    },
 )
 
 
-# Enable foreign keys for SQLite
+# Enable foreign keys and WAL mode for SQLite
 @event.listens_for(engine.sync_engine, "connect")
-def enable_sqlite_fks(dbapi_connection, connection_record):
-    """Enable foreign key constraints for SQLite."""
+def configure_sqlite(dbapi_connection, connection_record):
+    """Configure SQLite for better concurrency."""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA journal_mode=WAL")  # Enable WAL for better concurrency
+    cursor.execute("PRAGMA busy_timeout=30000")  # 30 second timeout for busy locks
     cursor.close()
 
 
