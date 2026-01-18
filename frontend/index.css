@@ -11,7 +11,7 @@
     --primary-green: #10b981;
     --primary-orange: #f59e0b;
     --primary-red: #ef4444;
-    
+
     /* Backgrounds */
     --bg-primary: #0a0a0f;
     --bg-secondary: #12121a;
@@ -19,28 +19,28 @@
     --bg-elevated: #22222f;
     --bg-glass: rgba(18, 18, 26, 0.8);
     --bg-glass-light: rgba(255, 255, 255, 0.03);
-    
+
     /* Text */
     --text-primary: #f0f0f5;
     --text-secondary: #a0a0b0;
     --text-muted: #606070;
-    
+
     /* Borders */
     --border-subtle: rgba(255, 255, 255, 0.06);
     --border-default: rgba(255, 255, 255, 0.1);
     --border-bright: rgba(255, 255, 255, 0.15);
-    
+
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, var(--primary-cyan), var(--primary-purple));
-    --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-    
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+
     /* Shadows */
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
     --shadow-glow-cyan: 0 0 20px rgba(0, 240, 255, 0.3);
     --shadow-glow-purple: 0 0 20px rgba(168, 85, 247, 0.3);
-    
+
     /* Spacing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
@@ -48,21 +48,21 @@
     --spacing-lg: 24px;
     --spacing-xl: 32px;
     --spacing-2xl: 48px;
-    
+
     /* Border Radius */
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 16px;
     --radius-xl: 24px;
-    
+
     /* Typography */
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    
+
     /* Sidebar width */
     --sidebar-width: 260px;
     --drawer-width: 320px;
-    
+
     /* Transitions */
     --transition-fast: 150ms ease;
     --transition-normal: 250ms ease;
@@ -73,7 +73,9 @@
    Reset & Base
    ================================================ */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -147,7 +149,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .loader-text {
@@ -167,7 +171,7 @@ body {
 .app-container {
     display: flex;
     height: 100vh;
-    background: 
+    background:
         radial-gradient(ellipse at 20% 80%, rgba(0, 240, 255, 0.05) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(168, 85, 247, 0.05) 0%, transparent 50%),
         var(--bg-primary);
@@ -424,8 +428,15 @@ body {
 }
 
 @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
 }
 
 .welcome-message h2 {
@@ -468,6 +479,7 @@ body {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -837,6 +849,7 @@ body {
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -1022,6 +1035,7 @@ body {
         opacity: 0;
         transform: scale(0.95) translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: scale(1) translateY(0);
@@ -1122,15 +1136,27 @@ body {
     animation: typingBounce 1.4s infinite ease-in-out both;
 }
 
-.typing-dot:nth-child(1) { animation-delay: -0.32s; }
-.typing-dot:nth-child(2) { animation-delay: -0.16s; }
-.typing-dot:nth-child(3) { animation-delay: 0; }
+.typing-dot:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.typing-dot:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+.typing-dot:nth-child(3) {
+    animation-delay: 0;
+}
 
 @keyframes typingBounce {
-    0%, 80%, 100% {
+
+    0%,
+    80%,
+    100% {
         transform: scale(0.6);
         opacity: 0.5;
     }
+
     40% {
         transform: scale(1);
         opacity: 1;
@@ -1345,7 +1371,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    padding-top: 60px; /* Space for project context button */
+    padding-top: 60px;
+    /* Space for project context button */
 }
 
 /* ================================================
@@ -1380,7 +1407,7 @@ body {
     background-clip: text;
 }
 
-.start-task-content > p {
+.start-task-content>p {
     color: var(--text-secondary);
     font-size: 1.1rem;
     margin-bottom: var(--spacing-xl);
@@ -1479,8 +1506,15 @@ body {
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .work-chat-input-container {
@@ -1581,6 +1615,154 @@ body {
 }
 
 /* ================================================
+   Work Chat System Message
+   ================================================ */
+
+.system-message {
+    text-align: center;
+    padding: var(--spacing-lg) var(--spacing-xl);
+    margin: var(--spacing-md) auto var(--spacing-lg);
+    max-width: 600px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.system-message .task-title {
+    color: var(--primary-cyan);
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.system-message .task-description {
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* ================================================
+   Markdown Rendered Content
+   ================================================ */
+
+.message-content.markdown-body {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.message-content.markdown-body h1,
+.message-content.markdown-body h2,
+.message-content.markdown-body h3,
+.message-content.markdown-body h4 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.message-content.markdown-body h1 {
+    font-size: 1.3rem;
+}
+
+.message-content.markdown-body h2 {
+    font-size: 1.15rem;
+}
+
+.message-content.markdown-body h3 {
+    font-size: 1rem;
+}
+
+.message-content.markdown-body h4 {
+    font-size: 0.9rem;
+}
+
+.message-content.markdown-body p {
+    margin-bottom: 0.75em;
+}
+
+.message-content.markdown-body ul,
+.message-content.markdown-body ol {
+    margin: 0.5em 0;
+    padding-left: 1.5em;
+}
+
+.message-content.markdown-body li {
+    margin-bottom: 0.25em;
+}
+
+.message-content.markdown-body code {
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--primary-cyan);
+}
+
+.message-content.markdown-body pre {
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+    margin: 0.75em 0;
+    border: 1px solid var(--border-subtle);
+}
+
+.message-content.markdown-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.message-content.markdown-body blockquote {
+    border-left: 3px solid var(--primary-cyan);
+    margin: 0.75em 0;
+    padding-left: var(--spacing-md);
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.message-content.markdown-body strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.message-content.markdown-body a {
+    color: var(--primary-cyan);
+    text-decoration: none;
+}
+
+.message-content.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.message-content.markdown-body hr {
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    margin: 1em 0;
+}
+
+.message-content.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0;
+}
+
+.message-content.markdown-body th,
+.message-content.markdown-body td {
+    border: 1px solid var(--border-default);
+    padding: var(--spacing-sm);
+    text-align: left;
+}
+
+.message-content.markdown-body th {
+    background: var(--bg-tertiary);
+    font-weight: 600;
+}
+
+/* ================================================
    Responsive
    ================================================ */
 
@@ -1588,7 +1770,7 @@ body {
     .sidebar {
         width: 200px;
     }
-    
+
     .why-drawer.open {
         width: 280px;
     }
@@ -1601,11 +1783,11 @@ body {
         transform: translateX(-100%);
         transition: transform var(--transition-normal);
     }
-    
+
     .sidebar.open {
         transform: translateX(0);
     }
-    
+
     .why-drawer {
         position: absolute;
         right: 0;

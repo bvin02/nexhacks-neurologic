@@ -418,10 +418,10 @@ async function beginTask() {
         };
         state.workMessages = [];
 
-        // Add welcome message
+        // Add system message (not a chat bubble)
         state.workMessages.push({
-            role: 'assistant',
-            content: `Started work session for: ${taskDescription}\n\nI'll help you with this task. Feel free to ask questions, discuss approaches, or work through implementation. When you're done, click 'Task Completed' to save any important decisions or outcomes to project memory.`,
+            role: 'system',
+            content: taskDescription,
         });
 
         closeTaskModal();
@@ -494,20 +494,58 @@ async function sendWorkMessage() {
 }
 
 function renderWorkMessages() {
-    elements.workChatMessages.innerHTML = state.workMessages.map((msg, idx) => `
-        <div class="message ${msg.role}">
-            <div class="message-content">
-                <div class="message-text">${escapeHtml(msg.content)}</div>
-                ${msg.role === 'assistant' && idx === state.workMessages.length - 1 && state.lastDebugInfo ? `
-                    <div class="message-meta">
-                        <span>${state.lastDebugInfo.memory_used?.length || 0} memories used</span>
-                        <button class="why-btn" onclick="openWhyDrawer()">Why?</button>
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `).join('');
+    // Render markdown using marked.js
+    const renderMarkdown = (text) => {
+        if (typeof marked !== 'undefined' && marked.parse) {
+            return marked.parse(text);
+        }
+        // Fallback if marked is not loaded
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    };
 
+    const html = state.workMessages.map((msg, idx) => {
+        // System message - centered, no bubble
+        if (msg.role === 'system') {
+            return `
+                <div class="system-message">
+                    <div class="task-title">🎯 Work Session Started</div>
+                    <div class="task-description">"${escapeHtml(msg.content)}"</div>
+                    <div>Ask questions, discuss approaches, or work through implementation. Click "Task Completed" when done to save important decisions.</div>
+                </div>
+            `;
+        }
+
+        // User message - plain text
+        if (msg.role === 'user') {
+            return `
+                <div class="message user">
+                    <div class="message-content">
+                        <div class="message-text">${escapeHtml(msg.content)}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Assistant message - render markdown
+        const isLastMessage = idx === state.workMessages.length - 1;
+        const showMeta = isLastMessage && state.lastDebugInfo;
+
+        return `
+            <div class="message assistant">
+                <div class="message-content markdown-body">
+                    ${renderMarkdown(msg.content)}
+                    ${showMeta ? `
+                        <div class="message-meta">
+                            <span>${state.lastDebugInfo.memory_used?.length || 0} memories used</span>
+                            <button class="why-btn" onclick="openWhyDrawer()">Why?</button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    elements.workChatMessages.innerHTML = html;
     elements.workChatMessages.scrollTop = elements.workChatMessages.scrollHeight;
 }
 
@@ -582,10 +620,21 @@ async function checkForActiveWorkSession() {
                 state.currentProject.id,
                 activeSession.session_id
             );
-            state.workMessages = messages.map(m => ({
-                role: m.role,
-                content: m.content,
-            }));
+
+            // Start with system message showing task description
+            state.workMessages = [
+                {
+                    role: 'system',
+                    content: activeSession.task_description,
+                },
+                // Filter out the welcome message (first assistant message) and add the rest
+                ...messages
+                    .filter((m, idx) => !(idx === 0 && m.role === 'assistant' && m.content.startsWith('Started work session')))
+                    .map(m => ({
+                        role: m.role,
+                        content: m.content,
+                    }))
+            ];
 
             showWorkChatUI();
             renderWorkMessages();
