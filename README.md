@@ -14,7 +14,7 @@
 
 ---
 
-## 🧠 What is DecisionOS?
+## What is DecisionOS?
 
 DecisionOS fixes a core failure of stateless LLMs: **they do not remember** why things were decided, what was tried before, or what constraints still apply.
 
@@ -30,7 +30,7 @@ DecisionOS introduces a **persistent cognitive layer** that:
 
 ---
 
-## 🏙️ Turing City Theme
+## Turing City Theme
 
 Built for the **"Turing City"** hackathon theme - a futuristic city where Artificial General Intelligence is widespread.
 
@@ -38,7 +38,7 @@ In Turing City, intelligence is not just generating answers. It is **continuity,
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### 1. Typed Memory System
 - **Decisions**: Choices made between alternatives
@@ -66,7 +66,7 @@ Every answer includes debug metadata showing:
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -153,7 +153,7 @@ Type:
 > "Let's switch to MongoDB for better scalability."
 
 **Watch the system challenge you:**
-> ⚠️ This appears to conflict with existing commitments...
+>  This appears to conflict with existing commitments...
 > 
 > **COMMITMENT** (created Jan 16, 2026): "We will only use PostgreSQL for our database."
 >
@@ -166,22 +166,22 @@ Type:
 4. **Refresh the page**
 5. Ask: "What database are we using?"
 
-The system remembers! 🎉
+The system remembers! 
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────┐
-│          Frontend Workspace          │
+│          Frontend Workspace         │
 │  Chat │ Ledger │ Timeline │ Why?    │
 └───────────────┬─────────────────────┘
                 │
                 ▼
 ┌─────────────────────────────────────┐
-│          FastAPI Backend             │
-│         POST /chat                   │
+│          FastAPI Backend            │
+│         POST /chat                  │
 └───────────────┬─────────────────────┘
                 │
         ┌───────┴───────┐
@@ -210,7 +210,7 @@ The system remembers! 🎉
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Antigravity-DecisionOS/
@@ -239,7 +239,7 @@ Antigravity-DecisionOS/
 
 ---
 
-## 🔌 API Reference
+## API Reference
 
 ### Projects
 
@@ -268,7 +268,7 @@ Antigravity-DecisionOS/
 
 ---
 
-## 🎨 Design Philosophy
+## Design Philosophy
 
 ### Why Not Just "ChatGPT with Memory"?
 
@@ -289,7 +289,7 @@ Antigravity-DecisionOS/
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Backend**: FastAPI, SQLAlchemy, SQLite
 - **LLM**: OpenAI GPT-4o / Google Gemini 2.0 Flash
@@ -297,8 +297,10 @@ Antigravity-DecisionOS/
 - **Embeddings**: text-embedding-3-small / Gemini embedding
 
 ---
+Tools Used: Gemini API, Token Company API, Devswarm, Google Antigravity IDE
+---
 
-## 📜 License
+## License
 
 MIT License - Built for NexHacks 2026
 
@@ -308,6 +310,6 @@ MIT License - Built for NexHacks 2026
 
 **DecisionOS** - *The future of project continuity*
 
-🧠 Same Model. Same Prompt. **Only Memory Changed.**
+Same Model. Same Prompt. **Only Memory Changed.**
 
 </div>
