@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     
     gemini_heavy_model: str = "gemini-2.5-pro"
-    gemini_mid_model: str = "gemini-3-flash-preview"
+    gemini_mid_model: str = "gemini-2.5-flash"
     gemini_cheap_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "models/text-embedding-004"
     

@@ -1965,6 +1965,14 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0;
+    
+    /* Hide scrollbar but keep functionality */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.observability-notifications::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 /* Notification Tile - Glassmorphism */
@@ -1979,6 +1987,7 @@ body {
     color: var(--text-primary);
     font-size: 0.8rem;
     animation: notificationFadeIn 0.3s ease-out;
+    flex-shrink: 0;
 }
 
 /* Vertical connector line - centered between tiles */
@@ -1988,6 +1997,7 @@ body {
     background: rgba(255, 255, 255, 0.2);
     margin: 0 auto;
     border-radius: 1px;
+    flex-shrink: 0;
 }
 
 .notification-tile.complete {
