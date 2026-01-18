@@ -35,6 +35,10 @@ class EventType(str, Enum):
     SUMMARIZING = "summarizing"
     SUMMARY_GENERATED = "summary_generated"
     SESSION_COMPLETE = "session_complete"
+    
+    # Conflict events
+    CONFLICT_DETECTED = "conflict_detected"
+    CONFLICT_RESOLVED = "conflict_resolved"
 
 
 @dataclass

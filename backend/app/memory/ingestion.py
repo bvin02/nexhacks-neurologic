@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Optional, List
 import tiktoken
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.memory import MemoryAtom, MemoryVersion, MemoryType, MemoryStatus
@@ -313,17 +314,64 @@ class IngestionPipeline:
         for i, candidate in enumerate(candidates):
             trace_step("memory.ingestion", f"Processing candidate {i+1}/{len(candidates)}: {candidate.type.value}")
             
-            # Check for duplicates
+            # Check for duplicates and contradictions
             trace_call("memory.ingestion", "DeduplicationService.check_duplicate")
-            is_dup, existing_id, merged_stmt, new_details = await self.dedup.check_duplicate(
+            is_dup, is_contradiction, existing_id, merged_stmt, new_details = await self.dedup.check_duplicate(
                 project_id=project_id,
                 candidate=candidate,
             )
-            trace_result("memory.ingestion", "check_duplicate", True, f"duplicate={is_dup}")
+            trace_result("memory.ingestion", "check_duplicate", True, f"duplicate={is_dup}, contradiction={is_contradiction}")
             
-            if is_dup and existing_id:
+            # Handle contradiction - DON'T create memory, trigger conflict UI
+            if is_contradiction and existing_id:
+                trace_step("memory.ingestion", f"Contradiction detected with memory {existing_id[:8]} - triggering conflict resolution")
+                
+                # Get the existing memory details for the UI
+                existing_stmt = select(MemoryAtom).where(MemoryAtom.id == existing_id)
+                existing_result = await self.db.execute(existing_stmt)
+                existing_memory = existing_result.scalar_one_or_none()
+                
+                # Publish CONFLICT_DETECTED event for the UI
+                if turn_id and existing_memory:
+                    await publisher.publish(
+                        project_id, EventType.CONFLICT_DETECTED,
+                        f"Conflict detected!", turn_id,
+                        data={
+                            "new_memory": {
+                                "id": None,  # Not created yet
+                                "type": candidate.type.value,
+                                "statement": candidate.canonical_statement,
+                                "importance": candidate.importance,
+                                "confidence": candidate.confidence,
+                            },
+                            "existing_memory": {
+                                "id": str(existing_memory.id),
+                                "type": existing_memory.type.value,
+                                "statement": existing_memory.canonical_statement,
+                                "importance": existing_memory.importance,
+                                "confidence": existing_memory.confidence,
+                                "created_at": existing_memory.created_at.isoformat(),
+                            },
+                            "explanation": f"New statement contradicts existing {existing_memory.type.value}",
+                            "recommended_action": "resolve",
+                        }
+                    )
+                
+                # Log the conflict
+                self.db.add(OpsLog(
+                    project_id=project_id,
+                    op_type=OpType.CONFLICT,
+                    entity_id=existing_id,
+                    entity_type="memory",
+                    message=f"Contradiction detected: '{candidate.canonical_statement[:50]}...' conflicts with existing memory",
+                ))
+                
+                # Skip creating this memory - user must resolve conflict first
+                continue
+                
+            elif is_dup and existing_id:
                 # Update existing memory with new version - use merged statement
-                if new_details and new_details != "none":
+                if new_details and new_details != "none" and new_details is not None:
                     trace_step("memory.ingestion", f"Merging into existing memory (new details: {new_details})")
                 else:
                     trace_step("memory.ingestion", "Merging into existing memory (no new details)")
@@ -350,7 +398,7 @@ class IngestionPipeline:
                         data={
                             "memory_id": existing_id,
                             "type": candidate.type.value,
-                            "preview": merged_stmt[:50] + "..." if len(merged_stmt) > 50 else merged_stmt
+                            "preview": merged_stmt[:50] + "..." if merged_stmt and len(merged_stmt) > 50 else (merged_stmt or candidate.canonical_statement[:50])
                         }
                     )
                 
@@ -424,6 +472,38 @@ class IngestionPipeline:
                     message=f"Conflict detected with memory {conflict['other_id']}: {conflict['explanation']}",
                     extra_data=json.dumps(conflict),
                 ))
+                
+                # Publish conflict event with full details for UI
+                if turn_id:
+                    # Get the conflicting memory details
+                    other_stmt = select(MemoryAtom).where(MemoryAtom.id == conflict['other_id'])
+                    other_result = await self.db.execute(other_stmt)
+                    other_memory = other_result.scalar_one_or_none()
+                    
+                    await publisher.publish(
+                        project_id, EventType.CONFLICT_DETECTED,
+                        f"Conflict detected!", turn_id,
+                        data={
+                            "new_memory": {
+                                "id": memory.id,
+                                "type": memory.type.value,
+                                "statement": memory.canonical_statement,
+                                "importance": memory.importance,
+                                "confidence": memory.confidence,
+                                "created_at": memory.created_at.isoformat(),
+                            },
+                            "existing_memory": {
+                                "id": other_memory.id if other_memory else conflict['other_id'],
+                                "type": other_memory.type.value if other_memory else "unknown",
+                                "statement": conflict['other_statement'],
+                                "importance": other_memory.importance if other_memory else 0.5,
+                                "confidence": other_memory.confidence if other_memory else 0.5,
+                                "created_at": other_memory.created_at.isoformat() if other_memory else None,
+                            },
+                            "explanation": conflict['explanation'],
+                            "recommended_action": conflict['action'],
+                        }
+                    )
         
         # Publish: duplicates merged
         if turn_id and merged_count > 0:
@@ -481,11 +561,12 @@ class IngestionPipeline:
             candidates = self._apply_write_gate(candidates)
             
             for candidate in candidates:
-                is_dup, _ = await self.dedup.check_duplicate(
+                is_dup, is_contradiction, _, _, _ = await self.dedup.check_duplicate(
                     project_id=project_id,
                     candidate=candidate,
                 )
-                if is_dup:
+                # Skip duplicates but allow contradictions through for conflict detection
+                if is_dup and not is_contradiction:
                     continue
                 
                 memory = MemoryAtom(

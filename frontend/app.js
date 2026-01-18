@@ -242,6 +242,42 @@ function handlePipelineEvent(event) {
                 tile.appendChild(previewSpan);
             }
             break;
+            
+        case 'conflict_detected':
+            // Store conflict data for resolution modal
+            tile.classList.add('conflict-blink');
+            tile.dataset.conflictData = JSON.stringify(event.data);
+            tile.style.cursor = 'pointer';
+            tile.onclick = () => openConflictModal(event.data);
+            
+            // Add conflict preview
+            if (event.data) {
+                const conflictHtml = `
+                    <div class="conflict-preview">
+                        <div class="conflict-explanation">${escapeHtml(event.data.explanation)}</div>
+                        <div class="conflict-action-hint">Click to resolve</div>
+                    </div>
+                `;
+                contextDiv.innerHTML = conflictHtml;
+                tile.appendChild(contextDiv);
+            }
+            break;
+            
+        case 'conflict_resolved':
+            // Show resolution result
+            tile.classList.add('conflict-resolved');
+            if (event.data) {
+                const resolutionIcon = event.data.resolution === 'keep' ? 'check' : 'edit';
+                const resolutionHtml = `
+                    <div class="resolution-result">
+                        <span class="resolution-badge ${event.data.resolution}">${event.data.resolution === 'keep' ? 'Kept Existing' : 'Overridden'}</span>
+                        <span class="resolution-message">${escapeHtml(event.data.message || '')}</span>
+                    </div>
+                `;
+                contextDiv.innerHTML = resolutionHtml;
+                tile.appendChild(contextDiv);
+            }
+            break;
     }
 
     // For complete events and session_complete events, add memory citation pills
@@ -642,6 +678,120 @@ function openTaskModal() {
 function closeTaskModal() {
     elements.taskModal.classList.remove('open');
     elements.taskDescriptionInput.value = '';
+}
+
+// ============================================
+// Conflict Resolution Modal
+// ============================================
+
+let currentConflictData = null;
+
+function openConflictModal(data) {
+    if (!data || !data.existing_memory || !data.new_memory) {
+        console.error('Invalid conflict data:', data);
+        showToast('Invalid conflict data', 'error');
+        return;
+    }
+    
+    currentConflictData = data;
+    const modal = document.getElementById('conflict-modal');
+    
+    // Populate existing memory
+    const existing = data.existing_memory;
+    document.getElementById('existing-type').textContent = existing.type?.toUpperCase() || 'MEMORY';
+    document.getElementById('existing-statement').textContent = existing.statement || 'No statement';
+    document.getElementById('existing-confidence').textContent = `${Math.round((existing.confidence || 0.8) * 100)}%`;
+    document.getElementById('existing-importance').textContent = `${Math.round((existing.importance || 0.5) * 100)}%`;
+    document.getElementById('existing-confidence-bar').style.width = `${(existing.confidence || 0.8) * 100}%`;
+    document.getElementById('existing-importance-bar').style.width = `${(existing.importance || 0.5) * 100}%`;
+    
+    // Calculate age - handle null created_at
+    if (existing.created_at) {
+        const createdAt = new Date(existing.created_at);
+        document.getElementById('existing-age').textContent = formatTimeAgo(createdAt);
+    } else {
+        document.getElementById('existing-age').textContent = 'Unknown';
+    }
+    
+    // Populate new memory
+    const newMem = data.new_memory;
+    document.getElementById('new-type').textContent = newMem.type?.toUpperCase() || 'MEMORY';
+    document.getElementById('new-statement').textContent = newMem.statement || 'No statement';
+    document.getElementById('new-confidence').textContent = `${Math.round((newMem.confidence || 0.8) * 100)}%`;
+    document.getElementById('new-importance').textContent = `${Math.round((newMem.importance || 0.5) * 100)}%`;
+    document.getElementById('new-confidence-bar').style.width = `${(newMem.confidence || 0.8) * 100}%`;
+    document.getElementById('new-importance-bar').style.width = `${(newMem.importance || 0.5) * 100}%`;
+    
+    modal.classList.add('open');
+}
+
+function closeConflictModal() {
+    const modal = document.getElementById('conflict-modal');
+    if (modal) {
+        modal.classList.remove('open');
+    }
+    currentConflictData = null;
+    
+    // Remove blink from any conflict tiles
+    document.querySelectorAll('.notification-tile.conflict-blink').forEach(tile => {
+        tile.classList.remove('conflict-blink');
+    });
+}
+
+async function resolveConflict(resolution) {
+    if (!currentConflictData || !state.currentProject) {
+        showToast('No conflict to resolve', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/projects/${state.currentProject.id}/resolve-conflict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                existing_memory_id: currentConflictData.existing_memory.id,
+                new_memory: currentConflictData.new_memory,
+                resolution: resolution // 'keep' or 'override'
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to resolve conflict');
+        }
+        
+        const result = await response.json();
+        
+        // Show success toast
+        if (resolution === 'keep') {
+            showToast('Kept existing memory. New memory discarded.', 'success');
+        } else {
+            showToast('New memory created. Previous marked as disputed.', 'success');
+        }
+        
+        closeConflictModal();
+        
+        // Refresh ledger to show updated memories
+        await loadLedger();
+        
+    } catch (error) {
+        console.error('Failed to resolve conflict:', error);
+        showToast('Failed to resolve conflict: ' + error.message, 'error');
+    }
+}
+
+function formatTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
+    return 'Just now';
 }
 
 async function beginTask() {
@@ -1130,20 +1280,27 @@ function renderLedger(filter = 'all') {
         return;
     }
 
+    // Collect all memories
+    const allMemories = [
+        ...state.ledger.decisions,
+        ...state.ledger.commitments,
+        ...state.ledger.constraints,
+        ...state.ledger.goals,
+        ...state.ledger.failures,
+        ...state.ledger.assumptions,
+        ...state.ledger.exceptions,
+        ...state.ledger.preferences,
+        ...state.ledger.beliefs,
+    ];
+
     let memories = [];
 
-    if (filter === 'all') {
-        memories = [
-            ...state.ledger.decisions,
-            ...state.ledger.commitments,
-            ...state.ledger.constraints,
-            ...state.ledger.goals,
-            ...state.ledger.failures,
-            ...state.ledger.assumptions,
-            ...state.ledger.exceptions,
-            ...state.ledger.preferences,
-            ...state.ledger.beliefs,
-        ];
+    if (filter === 'disputed') {
+        // Show only disputed memories
+        memories = allMemories.filter(m => m.status === 'disputed');
+    } else if (filter === 'all') {
+        // Show all non-disputed memories
+        memories = allMemories.filter(m => m.status !== 'disputed');
     } else {
         const typeMap = {
             'decision': state.ledger.decisions,
@@ -1152,24 +1309,35 @@ function renderLedger(filter = 'all') {
             'goal': state.ledger.goals,
             'failure': state.ledger.failures,
         };
-        memories = typeMap[filter] || [];
+        // Filter out disputed from type-specific views too
+        memories = (typeMap[filter] || []).filter(m => m.status !== 'disputed');
     }
 
     memories.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     if (memories.length === 0) {
+        const emptyMessages = {
+            'all': { title: 'No memories yet', desc: 'Start chatting to build your project memory' },
+            'disputed': { title: 'No disputed memories', desc: 'Good news! No conflicts detected' },
+            'decision': { title: 'No decisions yet', desc: 'Start chatting to record decisions' },
+            'commitment': { title: 'No commitments yet', desc: 'Make commitments to track them here' },
+            'constraint': { title: 'No constraints yet', desc: 'Define constraints to see them here' },
+            'goal': { title: 'No goals yet', desc: 'Set goals to track them here' },
+            'failure': { title: 'No failures logged', desc: 'Failures will appear here when logged' },
+        };
+        const msg = emptyMessages[filter] || { title: `No ${filter}s yet`, desc: 'Start chatting to add memories' };
         elements.ledgerContent.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon"></div>
-                <h3>No ${filter === 'all' ? 'memories' : filter + 's'} yet</h3>
-                <p>Start chatting to build your project memory</p>
+                <div class="empty-icon">${filter === 'disputed' ? '✓' : ''}</div>
+                <h3>${msg.title}</h3>
+                <p>${msg.desc}</p>
             </div>
         `;
         return;
     }
 
     elements.ledgerContent.innerHTML = memories.map(memory => `
-        <div class="memory-card" id="memory-${memory.id}" onclick="openMemoryDetail('${memory.id}')">
+        <div class="memory-card ${memory.status === 'disputed' ? 'disputed' : ''}" id="memory-${memory.id}" onclick="openMemoryDetail('${memory.id}')">
             <div class="memory-card-header">
                 <span class="memory-type-badge ${memory.type}">${memory.type}</span>
                 <span class="memory-status ${memory.status}">${memory.status}</span>

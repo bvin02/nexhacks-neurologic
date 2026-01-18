@@ -234,6 +234,14 @@
                                 <button class="filter-btn" data-type="constraint">Constraints</button>
                                 <button class="filter-btn" data-type="goal">Goals</button>
                                 <button class="filter-btn" data-type="failure">Failures</button>
+                                <button class="filter-btn disputed-filter" data-type="disputed">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                        <line x1="12" y1="9" x2="12" y2="13"/>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                    Disputed
+                                </button>
                             </div>
                             <div id="ledger-content" class="ledger-content">
                                 <div class="empty-state">
@@ -341,11 +349,110 @@
             </div>
         </div>
 
+        <!-- Conflict Resolution Modal -->
+        <div id="conflict-modal" class="modal conflict-modal">
+            <div class="modal-content conflict-modal-content">
+                <div class="modal-header conflict-header">
+                    <div class="conflict-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="conflict-icon">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <h3>Memory Conflict Detected</h3>
+                    </div>
+                    <button class="close-btn" onclick="closeConflictModal()">×</button>
+                </div>
+                <div class="modal-body conflict-body">
+                    <p class="conflict-description">A new memory conflicts with an existing one. Choose which to keep:</p>
+                    
+                    <div class="conflict-comparison">
+                        <!-- Existing Memory (Left Side) -->
+                        <div class="conflict-side existing-side">
+                            <div class="conflict-side-header">
+                                <span class="conflict-label">EXISTING</span>
+                                <span class="conflict-age" id="existing-age"></span>
+                            </div>
+                            <div class="conflict-memory-card" id="existing-memory-card">
+                                <div class="memory-type-badge" id="existing-type"></div>
+                                <p class="memory-statement" id="existing-statement"></p>
+                                <div class="memory-meta">
+                                    <div class="meta-item">
+                                        <span class="meta-label">Confidence</span>
+                                        <div class="meta-bar">
+                                            <div class="meta-fill" id="existing-confidence-bar"></div>
+                                        </div>
+                                        <span class="meta-value" id="existing-confidence"></span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="meta-label">Importance</span>
+                                        <div class="meta-bar">
+                                            <div class="meta-fill" id="existing-importance-bar"></div>
+                                        </div>
+                                        <span class="meta-value" id="existing-importance"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="conflict-action-btn keep-btn" onclick="resolveConflict('keep')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                Keep Existing
+                            </button>
+                        </div>
+
+                        <!-- Conflict Divider -->
+                        <div class="conflict-divider">
+                            <div class="divider-line"></div>
+                            <span class="divider-vs">VS</span>
+                            <div class="divider-line"></div>
+                        </div>
+
+                        <!-- New Memory (Right Side) -->
+                        <div class="conflict-side new-side">
+                            <div class="conflict-side-header">
+                                <span class="conflict-label new">NEW</span>
+                                <span class="conflict-age">Just now</span>
+                            </div>
+                            <div class="conflict-memory-card" id="new-memory-card">
+                                <div class="memory-type-badge" id="new-type"></div>
+                                <p class="memory-statement" id="new-statement"></p>
+                                <div class="memory-meta">
+                                    <div class="meta-item">
+                                        <span class="meta-label">Confidence</span>
+                                        <div class="meta-bar">
+                                            <div class="meta-fill" id="new-confidence-bar"></div>
+                                        </div>
+                                        <span class="meta-value" id="new-confidence"></span>
+                                    </div>
+                                    <div class="meta-item">
+                                        <span class="meta-label">Importance</span>
+                                        <div class="meta-bar">
+                                            <div class="meta-fill" id="new-importance-bar"></div>
+                                        </div>
+                                        <span class="meta-value" id="new-importance"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="conflict-action-btn override-btn" onclick="resolveConflict('override')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                                    <path d="M2 2l7.586 7.586"/>
+                                </svg>
+                                Override with New
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Task Description Modal -->
         <div id="task-modal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>🚀 Start a Work Session</h3>
+                    <h3>Start a Work Session</h3>
                     <button class="close-btn" onclick="closeTaskModal()">×</button>
                 </div>
                 <div class="modal-body">

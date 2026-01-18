@@ -18,6 +18,7 @@ from ..schemas.memory import (
     MemoryVersionResponse,
     MemoryLedgerResponse,
     ConflictResolution,
+    IngestionConflictResolution,
     EvidenceLinkResponse,
     MemoryEdgeResponse,
 )
@@ -301,3 +302,121 @@ async def delete_memory(
     await db.commit()
     
     return {"status": "superseded", "memory_id": memory_id}
+
+
+@router.post("/resolve-conflict")
+async def resolve_ingestion_conflict(
+    project_id: str,
+    data: IngestionConflictResolution,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resolve a conflict detected during memory ingestion.
+    
+    The new memory was NOT created yet - it was held pending conflict resolution.
+    
+    - 'keep': Keep the existing memory, discard the new one entirely
+    - 'override': Create the new memory and mark the existing one as disputed
+    """
+    from ..events import EventPublisher, EventType
+    from ..models.memory import MemoryVersion
+    
+    # Get existing memory
+    existing_stmt = select(MemoryAtom).where(
+        MemoryAtom.id == data.existing_memory_id,
+        MemoryAtom.project_id == project_id,
+    )
+    existing_result = await db.execute(existing_stmt)
+    existing = existing_result.scalar_one_or_none()
+    
+    if not existing:
+        raise HTTPException(status_code=404, detail="Existing memory not found")
+    
+    publisher = EventPublisher()
+    # Generate a turn_id for the resolution event
+    import uuid
+    turn_id = str(uuid.uuid4())[:8]
+    
+    if data.resolution == 'keep':
+        # Keep existing, discard new (it was never created)
+        await db.commit()
+        
+        await publisher.publish(
+            project_id=project_id,
+            event_type=EventType.CONFLICT_RESOLVED,
+            message="Conflict resolved - kept existing",
+            turn_id=turn_id,
+            data={
+                "resolution": "keep",
+                "kept_memory_id": str(existing.id),
+                "message": "Kept existing memory, new conflicting memory discarded"
+            }
+        )
+        
+        return {
+            "status": "resolved",
+            "resolution": "keep",
+            "kept_memory": {
+                "id": str(existing.id),
+                "statement": existing.canonical_statement
+            }
+        }
+    
+    elif data.resolution == 'override':
+        # Mark existing as disputed
+        existing.status = MemoryStatus.DISPUTED
+        
+        # NOW create the new memory (it wasn't created before)
+        new_memory = MemoryAtom(
+            project_id=project_id,
+            type=MemoryType(data.new_memory.type),
+            canonical_statement=data.new_memory.statement,
+            conflict_key=existing.conflict_key,  # Inherit conflict key
+            importance=data.new_memory.importance,
+            confidence=data.new_memory.confidence,
+            status=MemoryStatus.ACTIVE,
+        )
+        db.add(new_memory)
+        await db.flush()
+        
+        # Create initial version
+        version = MemoryVersion(
+            memory_id=new_memory.id,
+            version_number=1,
+            statement=data.new_memory.statement,
+            rationale=f"Created via conflict resolution, overriding: {existing.canonical_statement[:100]}",
+            changed_by="conflict_resolution",
+        )
+        db.add(version)
+        
+        await db.commit()
+        await db.refresh(new_memory)
+        
+        await publisher.publish(
+            project_id=project_id,
+            event_type=EventType.CONFLICT_RESOLVED,
+            message="Conflict resolved - overrode existing",
+            turn_id=turn_id,
+            data={
+                "resolution": "override",
+                "disputed_memory_id": str(existing.id),
+                "new_memory_id": str(new_memory.id),
+                "message": "Created new memory, existing marked as disputed"
+            }
+        )
+        
+        return {
+            "status": "resolved",
+            "resolution": "override",
+            "disputed_memory": {
+                "id": str(existing.id),
+                "statement": existing.canonical_statement
+            },
+            "new_memory": {
+                "id": str(new_memory.id),
+                "statement": new_memory.canonical_statement
+            }
+        }
+    
+    else:
+        raise HTTPException(status_code=400, detail="Invalid resolution. Use 'keep' or 'override'.")

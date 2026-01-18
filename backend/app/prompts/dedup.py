@@ -5,57 +5,70 @@ Determines if two memories are duplicates that should be merged.
 """
 
 DEDUP_CLASSIFIER_SYSTEM = """You are a deduplication classifier for DecisionOS.
-Your job is to determine if two memories are duplicates that should be merged.
+Your job is to determine the relationship between two memories.
 
-Two memories are duplicates if they:
-- Express the same core idea
-- Would conflict if both kept active
-- One is a refinement of the other
+CONTRADICTION DETECTION - CHECK THIS FIRST!
+A CONTRADICTION exists when:
+- "use X" vs "don't use X" or "stop using X" or "not using X"
+- "will do X" vs "won't do X" or "decided against X"
+- "enable X" vs "disable X"
+- "include X" vs "exclude X"  
+- "start X" vs "stop X"
+- Any negation words: "not", "don't", "won't", "stop", "no longer", "never"
+- User explicitly changed their mind or reversed a prior decision
 
-Two memories are distinct if they:
-- Cover different aspects of a topic
-- Both provide unique value
-- Are complementary rather than redundant
+If ANY of these patterns match, return is_contradiction=true IMMEDIATELY.
 
-MERGE RULES - When merging duplicates:
-1. Keep the EXISTING memory as the base
-2. Look for ANY new details in the NEW memory that aren't in the existing one
-3. Integrate those new details naturally into the merged statement
-4. Maintain similar word length (don't make it much longer)
-5. Preserve the original meaning and context
-6. Don't lose information - if the new memory adds specifics, include them
+DUPLICATE (is_duplicate=true, is_contradiction=false):
+ONLY if both memories agree and point in the same direction:
+- "use X" + "use X for purpose Y" = duplicate (adds detail)
+- "build feature A" + "build feature A with tech B" = duplicate (adds detail)
+
+DISTINCT (both false):
+- Completely different topics with no relation
+
+IMPORTANT: When in doubt between duplicate and contradiction, choose CONTRADICTION.
+It's better to flag a potential conflict than to silently merge opposing decisions.
 
 Respond with valid JSON only."""
 
-DEDUP_CLASSIFIER_PROMPT = """Compare these two memories and determine if they are duplicates.
+DEDUP_CLASSIFIER_PROMPT = """Compare these two memories and classify their relationship.
 
-Memory A (existing - keep this as base):
+Memory A (existing):
 Type: {type_a}
 Statement: {statement_a}
 Created: {created_a}
 
-Memory B (new - extract any added details):
+Memory B (new):
 Type: {type_b}
 Statement: {statement_b}
 
-If they ARE duplicates, create a merged_statement that:
-- Uses Memory A as the foundation
-- Incorporates any NEW specific details from Memory B that aren't in A
-- Keeps similar length to Memory A
-- Never loses information from either
+FIRST CHECK FOR CONTRADICTION:
+- Does B negate, reverse, or oppose A?
+- Does B say "don't/stop/not/won't" when A says "do/use/will"?
+- Did user change their mind?
+
+If YES to any → is_contradiction=true, is_duplicate=false
+
+EXAMPLES:
+- A: "Use clinicaltrials.gov" + B: "Don't use clinicaltrials.gov" → CONTRADICTION
+- A: "Use React" + B: "Use React with TypeScript" → DUPLICATE  
+- A: "Build auth module" + B: "Don't build auth module" → CONTRADICTION
+- A: "Use PostgreSQL" + B: "Use PostgreSQL with pgvector" → DUPLICATE
 
 Respond as strict JSON.
 Rules:
-1. Return valid JSON only. NO markdown blocks (```json).
+1. Return valid JSON only. NO markdown blocks.
 2. Escape all quotes within strings.
 3. No newlines inside string values.
 
 Expected format:
 {{
-  "is_duplicate": true,
-  "merged_statement": "Combined statement preserving all details (required if duplicate)",
-  "new_details_found": "What new details from B were integrated, or 'none' if B added nothing new",
-  "confidence": 0.8
+  "is_duplicate": false,
+  "is_contradiction": true,
+  "merged_statement": null,
+  "new_details_found": null,
+  "confidence": 0.95
 }}"""
 
 

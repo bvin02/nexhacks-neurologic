@@ -129,9 +129,28 @@ class ConflictResolution(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class NewMemoryData(BaseModel):
+    """New memory data for ingestion conflict resolution."""
+    type: str = "belief"
+    statement: str
+    importance: float = 0.5
+    confidence: float = 0.8
+    durability: str = "session"
+
+
+class IngestionConflictResolution(BaseModel):
+    """Request to resolve a conflict detected during memory ingestion."""
+    existing_memory_id: str
+    new_memory: NewMemoryData
+    resolution: str = Field(..., pattern="^(keep|override)$")
+    
+    model_config = {"extra": "forbid"}
+
+
 class DedupResult(BaseModel):
     """Result from deduplication classifier."""
     is_duplicate: bool
+    is_contradiction: bool = False  # True if memories contradict (user changed mind)
     merged_statement: Optional[str] = None
     new_details_found: Optional[str] = None  # What new details were integrated
     confidence: float = Field(0.8, ge=0.0, le=1.0)

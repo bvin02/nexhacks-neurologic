@@ -136,10 +136,17 @@ class IntentRouter:
                 suggested_tier=ModelTier.HEAVY.value,
             )
         
-        # Decision detection
+        # Decision detection - includes action statements that could conflict with existing decisions
         decision_phrases = [
             "decided", "we chose", "i chose", "let's go with",
-            "we're going with", "decision:", "choosing", "picked"
+            "we're going with", "decision:", "choosing", "picked",
+            # Action statements that imply decisions
+            "building", "implementing", "adding", "creating", "making",
+            "using", "going to use", "will use", "switching to",
+            "removing", "deleting", "dropping", "excluding", "including",
+            "starting", "stopping", "enabling", "disabling",
+            "we're doing", "i'm doing", "let's do", "doing",
+            "change to", "changing", "moving to", "migrating",
         ]
         if any(p in lower for p in decision_phrases):
             return IntentClassification(

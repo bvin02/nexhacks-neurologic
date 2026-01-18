@@ -83,6 +83,9 @@ class DeduplicationService:
             statement_b=candidate.canonical_statement,
         )
         
+        # Debug: log what's being compared
+        logger.info(f"[DEDUP] Comparing: EXISTING='{existing.canonical_statement}' vs NEW='{candidate.canonical_statement}'")
+        
         try:
             result = await self.llm.extract_json(
                 prompt=prompt,
@@ -90,45 +93,77 @@ class DeduplicationService:
                 model=get_model_for_task("deduplication"),
                 system_prompt=DEDUP_CLASSIFIER_SYSTEM,
             )
-            return DedupResult(**result)
+            dedup_result = DedupResult(**result)
+            logger.info(f"[DEDUP] Result: duplicate={dedup_result.is_duplicate}, contradiction={dedup_result.is_contradiction}")
+            return dedup_result
         except Exception as e:
             logger.error(f"Dedup classifier failed: {e}")
-            return DedupResult(is_duplicate=False, confidence=0.5)
+            return DedupResult(is_duplicate=False, is_contradiction=False, confidence=0.5)
     
     async def check_duplicate(
         self,
         project_id: str,
         candidate: MemoryCandidate,
-    ) -> Tuple[bool, Optional[str], Optional[str], Optional[str]]:
+    ) -> Tuple[bool, bool, Optional[str], Optional[str], Optional[str]]:
         """
-        Check if a candidate memory is a duplicate of an existing one.
+        Check if a candidate memory is a duplicate or contradiction of an existing one.
         
         Returns:
-            Tuple of (is_duplicate, existing_memory_id, merged_statement, new_details)
+            Tuple of (is_duplicate, is_contradiction, existing_memory_id, merged_statement, new_details)
+            - is_duplicate: True if same idea, should merge
+            - is_contradiction: True if opposite/negating, should trigger conflict
         """
-        # Get existing memories of the same type
-        stmt = select(MemoryAtom).where(
+        # FIRST: Check for contradictions across ALL memory types
+        # Contradictions can happen between different types (e.g., goal vs decision)
+        all_stmt = select(MemoryAtom).where(
             and_(
                 MemoryAtom.project_id == project_id,
-                MemoryAtom.type == candidate.type,
                 MemoryAtom.status.in_([MemoryStatus.ACTIVE, MemoryStatus.DISPUTED])
             )
         )
+        all_result = await self.db.execute(all_stmt)
+        all_memories = all_result.scalars().all()
         
-        result = await self.db.execute(stmt)
-        existing_memories = result.scalars().all()
+        if all_memories:
+            # Get embedding for candidate
+            candidate_embedding = await self._get_text_embedding(
+                candidate.canonical_statement
+            )
+            
+            # Check for contradictions across all types
+            for existing in all_memories:
+                existing_embedding = await self._get_text_embedding(
+                    existing.canonical_statement
+                )
+                
+                similarity = self._cosine_similarity(candidate_embedding, existing_embedding)
+                
+                # For cross-type checks, use a lower threshold since contradictions
+                # may be worded differently but still conflict
+                if similarity >= 0.5:
+                    dedup_result = await self._llm_check_duplicate(
+                        existing=existing,
+                        candidate=candidate,
+                    )
+                    
+                    # If contradiction found, return immediately
+                    if dedup_result.is_contradiction:
+                        logger.info(f"[DEDUP] Cross-type contradiction found with {existing.type.value}: {existing.id[:8]}")
+                        return False, True, existing.id, None, None
         
-        if not existing_memories:
-            return False, None, None, None
+        # SECOND: Check for duplicates within SAME type only
+        same_type_memories = [m for m in all_memories if m.type == candidate.type]
         
-        # Get embedding for candidate
+        if not same_type_memories:
+            return False, False, None, None, None
+        
+        # Get embedding for candidate (may already have it)
         candidate_embedding = await self._get_text_embedding(
             candidate.canonical_statement
         )
         
-        # Check each existing memory
-        for existing in existing_memories:
-            # Get embedding for existing
+        # Check each existing memory of same type for duplicates
+        for existing in same_type_memories:
             existing_embedding = await self._get_text_embedding(
                 existing.canonical_statement
             )
@@ -140,12 +175,15 @@ class DeduplicationService:
             )
             
             if similarity >= self.SIMILARITY_THRESHOLD:
-                # High similarity - do LLM merge to get merged statement
+                # High similarity - use LLM to determine duplicate vs contradiction
                 dedup_result = await self._llm_check_duplicate(
                     existing=existing,
                     candidate=candidate,
                 )
-                return True, existing.id, dedup_result.merged_statement, dedup_result.new_details_found
+                # If it's a contradiction, return that instead of merging
+                if dedup_result.is_contradiction:
+                    return False, True, existing.id, None, None
+                return True, False, existing.id, dedup_result.merged_statement, dedup_result.new_details_found
             
             # If similarity is close, use LLM classifier
             if similarity >= 0.7:
@@ -153,10 +191,13 @@ class DeduplicationService:
                     existing=existing,
                     candidate=candidate,
                 )
+                # Check for contradiction first
+                if dedup_result.is_contradiction:
+                    return False, True, existing.id, None, None
                 if dedup_result.is_duplicate:
-                    return True, existing.id, dedup_result.merged_statement, dedup_result.new_details_found
+                    return True, False, existing.id, dedup_result.merged_statement, dedup_result.new_details_found
         
-        return False, None, None, None
+        return False, False, None, None, None
     
     async def merge_into_existing(
         self,
