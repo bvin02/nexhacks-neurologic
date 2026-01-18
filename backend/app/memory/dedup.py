@@ -14,7 +14,7 @@ import numpy as np
 
 from ..models.memory import MemoryAtom, MemoryVersion, MemoryStatus
 from ..models.evidence import EvidenceChunk
-from ..schemas.memory import MemoryCandidate, DedupResult
+from ..schemas.memory import MemoryCandidate, DedupResult, MergeResult
 from ..llm import get_llm_provider, get_model_for_task, get_embedding_model
 from ..prompts.dedup import DEDUP_CLASSIFIER_SYSTEM, DEDUP_CLASSIFIER_PROMPT
 
@@ -210,7 +210,7 @@ class DeduplicationService:
                 
                 merge_result = await self.llm.extract_json(
                     prompt=merge_prompt,
-                    schema={"merged_statement": str, "changes_made": str, "kept_meaning": bool},
+                    schema=MergeResult,
                     model=get_model_for_task("deduplication"),
                     system_prompt=MERGE_MEMORIES_SYSTEM,
                 )

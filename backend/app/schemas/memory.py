@@ -142,3 +142,10 @@ class ConflictResult(BaseModel):
     relation: str = Field(..., pattern="^(consistent|contradiction|refinement)$")
     recommended_action: str
     explanation: str
+
+
+class MergeResult(BaseModel):
+    """Result from memory merge LLM call."""
+    merged_statement: str
+    changes_made: str
+    kept_meaning: bool = True
