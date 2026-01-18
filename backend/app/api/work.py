@@ -27,6 +27,7 @@ from ..schemas.chat import (
     WorkMessageInfo,
     DebugMetadata,
     Citation,
+    CompressionStats,
 )
 from ..memory.retrieval import RetrievalPipeline
 from ..memory.ingestion import IngestionPipeline
@@ -290,6 +291,9 @@ async def send_work_message(
     memory_context = "\n".join(memory_lines) if memory_lines else "No relevant project memories."
     trace_output("memory.retrieval", "memories_found", f"{len(memories_used)} memories")
     
+    # Estimate user message tokens (rough: 1 token ≈ 4 chars)
+    user_message_tokens = len(data.message) // 4
+    
     # Build the LLM prompt
     trace_section("Response Generation")
     trace_step("api.work", "Building LLM prompt with conversation + memory context")
@@ -312,6 +316,15 @@ Conversation History:
 {chr(10).join(conversation_text)}
 
 Respond helpfully to continue the work session. Be practical and focused on the task."""
+
+    # Calculate context overhead (RAG injection)
+    full_prompt_tokens = len(prompt) // 4  # Rough estimate
+    context_overhead_percent = ((full_prompt_tokens - user_message_tokens) / user_message_tokens * 100) if user_message_tokens > 0 else 0
+    
+    print(f"\n📊 CONTEXT OVERHEAD CALCULATION:")
+    print(f"   • User message tokens: {user_message_tokens}")
+    print(f"   • Full prompt tokens (with RAG): {full_prompt_tokens}")
+    print(f"   • Context overhead: +{context_overhead_percent:.1f}%")
 
     # Token compression stats (populated only if save_tokens is enabled)
     tokens_before = None
@@ -378,6 +391,22 @@ Respond helpfully to continue the work session. Be practical and focused on the 
     trace_output("api.work", "response", assistant_text[:100])
     logger.info(f"Work session {session_id}: processed message")
     
+    # Build compression stats for UI display
+    compression_stats = None
+    if data.save_tokens:
+        savings_percent = (tokens_saved / tokens_before * 100) if tokens_before and tokens_before > 0 else 0
+        compression_stats = CompressionStats(
+            enabled=True,
+            context_overhead_percent=round(context_overhead_percent, 1),
+            tokens_before=tokens_before,
+            tokens_after=tokens_after,
+            tokens_saved=tokens_saved,
+            savings_percent=round(savings_percent, 1),
+        )
+        print(f"\n✨ COMPRESSION STATS FOR UI:")
+        print(f"   • Context overhead: +{context_overhead_percent:.1f}%")
+        print(f"   • Compression: {tokens_before} → {tokens_after} ({savings_percent:.1f}% saved)")
+    
     return WorkSessionMessageResponse(
         assistant_text=assistant_text,
         session_id=session_id,
@@ -389,7 +418,11 @@ Respond helpfully to continue the work session. Be practical and focused on the 
             tokens_before_compression=tokens_before,
             tokens_after_compression=tokens_after,
             tokens_saved=tokens_saved,
+            context_overhead_percent=round(context_overhead_percent, 1) if data.save_tokens else None,
+            user_message_tokens=user_message_tokens if data.save_tokens else None,
+            full_prompt_tokens=full_prompt_tokens if data.save_tokens else None,
         ),
+        compression_stats=compression_stats,
     )
 
 

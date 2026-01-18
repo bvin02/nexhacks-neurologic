@@ -55,6 +55,11 @@ class DebugMetadata(BaseModel):
     tokens_after_compression: Optional[int] = None
     tokens_saved: Optional[int] = None
     
+    # RAG context overhead stats
+    context_overhead_percent: Optional[float] = None  # How much % extra context was added by RAG
+    user_message_tokens: Optional[int] = None  # Original user message token count
+    full_prompt_tokens: Optional[int] = None  # Full prompt with RAG context
+    
     model_config = {"protected_namespaces": ()}
 
 
@@ -147,11 +152,22 @@ class WorkSessionStartResponse(BaseModel):
     message: str
 
 
+class CompressionStats(BaseModel):
+    """Token compression stats to display per message."""
+    enabled: bool = False
+    context_overhead_percent: Optional[float] = None  # How much % RAG added to context
+    tokens_before: Optional[int] = None
+    tokens_after: Optional[int] = None
+    tokens_saved: Optional[int] = None
+    savings_percent: Optional[float] = None  # % reduction from compression
+
+
 class WorkSessionMessageResponse(BaseModel):
     """Response from a work session message."""
     assistant_text: str
     session_id: str
     debug: DebugMetadata
+    compression_stats: Optional[CompressionStats] = None  # Stats for UI display
     
 
 class WorkSessionEndResponse(BaseModel):

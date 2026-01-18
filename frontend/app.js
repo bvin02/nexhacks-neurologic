@@ -904,8 +904,8 @@ async function sendWorkMessage() {
     // Hide token stats when sending new message
     elements.tokenStats.classList.add('hidden');
 
-    // Add user message
-    state.workMessages.push({ role: 'user', content: message });
+    // Add user message (compression stats will be added after response)
+    state.workMessages.push({ role: 'user', content: message, compressionStats: null });
     renderWorkMessages();
 
     // Show typing
@@ -922,6 +922,12 @@ async function sendWorkMessage() {
 
         removeWorkTypingIndicator(typingId);
 
+        // Update the last user message with compression stats
+        const lastUserMsgIdx = state.workMessages.length - 1;
+        if (response.compression_stats?.enabled) {
+            state.workMessages[lastUserMsgIdx].compressionStats = response.compression_stats;
+        }
+
         // Add assistant message with memory IDs
         state.workMessages.push({
             role: 'assistant',
@@ -930,7 +936,7 @@ async function sendWorkMessage() {
         });
         state.lastDebugInfo = response.debug;
 
-        // Display token stats if save_tokens was enabled
+        // Display token stats if save_tokens was enabled (keep for summary display)
         if (state.saveTokensEnabled && response.debug?.tokens_before_compression != null) {
             elements.tokensBefore.textContent = response.debug.tokens_before_compression;
             elements.tokensAfter.textContent = response.debug.tokens_after_compression;
@@ -996,12 +1002,28 @@ function renderWorkMessages() {
             `;
         }
 
-        // User message - plain text
+        // User message - plain text with optional compression stats
         if (msg.role === 'user') {
+            const statsHtml = msg.compressionStats ? `
+                <div class="compression-stats-inline">
+                    <span class="stat-item overhead">
+                        <span class="stat-label">Context injected:</span>
+                        <span class="stat-value">+${msg.compressionStats.context_overhead_percent}%</span>
+                    </span>
+                    <span class="stat-divider">|</span>
+                    <span class="stat-item compression">
+                        <span class="stat-label">Token Company:</span>
+                        <span class="stat-value">${msg.compressionStats.tokens_before} → ${msg.compressionStats.tokens_after} tk</span>
+                        <span class="stat-saved">(${msg.compressionStats.savings_percent}% saved)</span>
+                    </span>
+                </div>
+            ` : '';
+            
             return `
                 <div class="message user">
                     <div class="message-content">
                         <div class="message-text">${escapeHtml(msg.content)}</div>
+                        ${statsHtml}
                     </div>
                 </div>
             `;
