@@ -19,10 +19,7 @@ class GeminiProvider(LLMProvider):
     """
     Google Gemini API implementation.
     
-    Supports:
-    - gemini-1.5-pro for heavy reasoning
-    - gemini-2.0-flash for cheap routing/extraction
-    - text-embedding-004 for embeddings
+    model supports in config.py
     """
     
     def __init__(self):
