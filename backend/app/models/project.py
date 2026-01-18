@@ -72,6 +72,11 @@ class Project(Base):
         back_populates="project",
         cascade="all, delete-orphan"
     )
+    work_sessions: Mapped[List["WorkSession"]] = relationship(
+        "WorkSession",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
     
     def __repr__(self) -> str:
         return f"<Project(id={self.id}, name={self.name})>"

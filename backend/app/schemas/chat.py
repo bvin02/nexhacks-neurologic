@@ -82,3 +82,77 @@ class TimelineResponse(BaseModel):
     """Timeline of project events."""
     events: List[TimelineEvent]
     total: int
+
+
+# =======================================
+# Work Session Schemas
+# =======================================
+
+class WorkSessionStartRequest(BaseModel):
+    """Request to start a new work session."""
+    task_description: str = Field(..., min_length=1)
+    
+    model_config = {"extra": "forbid"}
+
+
+class WorkSessionMessageRequest(BaseModel):
+    """Request to send a message in a work session."""
+    message: str = Field(..., min_length=1)
+    mode: Literal["fast", "balanced", "thorough"] = "balanced"
+    
+    model_config = {"extra": "forbid"}
+
+
+class WorkSessionEndRequest(BaseModel):
+    """Request to end a work session."""
+    # Optional summary override (if not provided, will be generated)
+    summary: Optional[str] = None
+    
+    model_config = {"extra": "forbid"}
+
+
+class WorkSessionInfo(BaseModel):
+    """Information about a work session."""
+    session_id: str
+    project_id: str
+    task_description: str
+    status: str
+    created_at: datetime
+    ended_at: Optional[datetime] = None
+    message_count: int = 0
+    
+    model_config = {"from_attributes": True}
+
+
+class WorkMessageInfo(BaseModel):
+    """A message in a work session."""
+    id: str
+    role: str
+    content: str
+    created_at: datetime
+    
+    model_config = {"from_attributes": True}
+
+
+class WorkSessionStartResponse(BaseModel):
+    """Response after starting a work session."""
+    session_id: str
+    task_description: str
+    message: str
+
+
+class WorkSessionMessageResponse(BaseModel):
+    """Response from a work session message."""
+    assistant_text: str
+    session_id: str
+    debug: DebugMetadata
+    
+
+class WorkSessionEndResponse(BaseModel):
+    """Response after ending a work session."""
+    session_id: str
+    message: str
+    memories_created: int
+    memory_ids: List[str]
+    summary: str
+

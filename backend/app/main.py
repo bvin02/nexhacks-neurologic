@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import init_db, close_db
 from .config import settings
-from .api import projects_router, chat_router, memory_router, ops_router
+from .api import projects_router, chat_router, memory_router, ops_router, work_router
 from .tracer import setup_follow_through_logging
 
 # Configure logging based on mode
@@ -81,6 +81,10 @@ app = FastAPI(
     - **Versioning**: Full history of how decisions evolved
     - **Conflict Detection**: Identifies contradictions automatically
     - **Receipts**: Every answer is backed by citations to source material
+    
+    ## Chat Modes
+    - **Project Chat**: Stateless, memory-first (ingests every message)
+    - **Work Chat**: Conversational sessions (ingests only on session end)
     """,
     version="1.0.0",
     lifespan=lifespan,
@@ -100,6 +104,7 @@ app.include_router(projects_router)
 app.include_router(chat_router)
 app.include_router(memory_router)
 app.include_router(ops_router)
+app.include_router(work_router)
 
 
 @app.get("/")
