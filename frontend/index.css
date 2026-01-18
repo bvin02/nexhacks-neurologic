@@ -1858,8 +1858,7 @@ body {
 }
 
 .citation-link::before {
-    content: '📌 ';
-    font-size: 0.9em;
+    content: '';
 }
 
 /* Message Sources Section */

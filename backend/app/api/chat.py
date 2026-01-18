@@ -44,7 +44,7 @@ async def chat(
     4. Generates response
     5. Ingests new memories from the message
     """
-    # ── TRACE: Start of chat request ──
+    # -- TRACE: Start of chat request --
     trace_section("Chat Request")
     trace_input("api.chat", "message", data.message)
     trace_input("api.chat", "mode", data.mode)

@@ -230,7 +230,7 @@ class EnforcementEngine:
                     f"\"{mem.canonical_statement}\""
                 )
         
-        challenge = f"""⚠️ **This appears to conflict with existing commitments:**
+        challenge = f"""**This appears to conflict with existing commitments:**
 
 {violation.explanation}
 

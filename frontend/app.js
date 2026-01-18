@@ -563,7 +563,7 @@ function renderWorkMessages() {
         if (msg.role === 'system') {
             return `
                 <div class="system-message">
-                    <div class="task-title">🎯 Work Session Started</div>
+                    <div class="task-title">Work Session Started</div>
                     <div class="task-description">"${escapeHtml(msg.content)}"</div>
                     <div>Ask questions, discuss approaches, or work through implementation. Click "Task Completed" when done to save important decisions.</div>
                 </div>
@@ -902,7 +902,7 @@ function renderLedger(filter = 'all') {
     if (!state.ledger) {
         elements.ledgerContent.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">📋</div>
+                <div class="empty-icon"></div>
                 <h3>No memories yet</h3>
                 <p>Start chatting to build your project memory</p>
             </div>
@@ -940,7 +940,7 @@ function renderLedger(filter = 'all') {
     if (memories.length === 0) {
         elements.ledgerContent.innerHTML = `
             <div class="empty-state">
-                <div class="empty-icon">📋</div>
+                <div class="empty-icon"></div>
                 <h3>No ${filter === 'all' ? 'memories' : filter + 's'} yet</h3>
                 <p>Start chatting to build your project memory</p>
             </div>
