@@ -84,6 +84,7 @@ class ReasoningEngine:
         message: str,
         mode: str = "balanced",
         recent_messages: List[str] = None,
+        turn_id: str = None,
     ) -> ChatResponse:
         """
         Generate a response to a user message.
@@ -93,11 +94,16 @@ class ReasoningEngine:
             message: User's message
             mode: Response mode (fast, balanced, thorough)
             recent_messages: Recent conversation for context
+            turn_id: Optional turn ID for event publishing
             
         Returns:
             ChatResponse with text and debug metadata
         """
         start_time = time.time()
+        
+        # Import event publisher
+        from ..events import get_event_publisher, EventType
+        publisher = get_event_publisher() if turn_id else None
         
         # Get project
         project = await self._get_project(project_id)
@@ -111,6 +117,13 @@ class ReasoningEngine:
         trace_call("engine.reasoning", "IntentRouter.classify")
         intent = await self.intent_router.classify(message)
         trace_result("engine.reasoning", "IntentRouter.classify", True, f"intent={intent.intent}, enforcement={intent.requires_enforcement}")
+        
+        # Publish: intent classified
+        if publisher:
+            await publisher.publish(
+                project_id, EventType.INTENT_CLASSIFIED,
+                f"Intent: {intent.intent}", turn_id
+            )
         
         # Determine tier based on mode
         tier_map = {
@@ -162,6 +175,13 @@ class ReasoningEngine:
                     suggested_actions=["revise", "exception", "override"],
                 )
         
+        # Publish: searching memories
+        if publisher:
+            await publisher.publish(
+                project_id, EventType.SEARCH_START,
+                "Searching memories...", turn_id
+            )
+        
         # Build context pack
         trace_call("engine.reasoning", "RetrievalPipeline.build_context_pack")
         context_pack = await self.retrieval.build_context_pack(
@@ -169,6 +189,13 @@ class ReasoningEngine:
             query=message,
         )
         trace_result("engine.reasoning", "RetrievalPipeline.build_context_pack", True, f"{len(context_pack['memory_ids'])} memories retrieved")
+        
+        # Publish: memories retrieved
+        if publisher:
+            await publisher.publish(
+                project_id, EventType.MEMORIES_RETRIEVED,
+                f"{len(context_pack['memory_ids'])} relevant memories found", turn_id
+            )
         
         memory_context = await self._format_memory_context(
             context_pack["memories_by_type"]
@@ -179,6 +206,13 @@ class ReasoningEngine:
         recent_text = ""
         if recent_messages:
             recent_text = "\n".join(recent_messages[-5:])
+        
+        # Publish: generating response
+        if publisher:
+            await publisher.publish(
+                project_id, EventType.GENERATING,
+                "Generating response...", turn_id
+            )
         
         # Generate response
         prompt = RESPONSE_GENERATOR_PROMPT.format(

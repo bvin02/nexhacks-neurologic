@@ -42,20 +42,25 @@ Project context:
 Message:
 {message}
 
-Extract memories as JSON:
+Extract memories as strict JSON.
+Rules:
+1. Return valid JSON only. NO markdown blocks (```json).
+2. Escape all quotes within strings (e.g., "quote \\"inner\\"").
+3. No newlines inside string values.
+4. If no memories found, return {{"candidates": []}}
+
+Expected format:
 {{
   "candidates": [
     {{
       "type": "decision | commitment | constraint | preference | goal | belief | failure | assumption | exception",
       "canonical_statement": "Clear, standalone statement",
       "conflict_key": "grouping_key or null",
-      "importance": 0.0-1.0,
-      "confidence": 0.0-1.0,
+      "importance": 0.5,
+      "confidence": 0.8,
       "rationale": "Why this was decided/stated",
       "evidence_quote": "Exact quote from message",
       "entities": ["entity1", "entity2"]
     }}
   ]
-}}
-
-If no memories should be extracted, return: {{"candidates": []}}"""
+}}"""

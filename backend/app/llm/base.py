@@ -93,7 +93,7 @@ class LLMProvider(ABC):
         max_tokens: int = 2048,
         temperature: float = 0.3,
         system_prompt: Optional[str] = None,
-        max_retries: int = 3,
+        max_retries: int = 2,
     ) -> dict[str, Any]:
         """
         Extract structured JSON from a prompt.

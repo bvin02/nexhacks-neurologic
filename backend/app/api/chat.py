@@ -23,6 +23,7 @@ from ..schemas.chat import (
 )
 from ..memory.ingestion import IngestionPipeline
 from ..engine.reasoning import ReasoningEngine
+from ..events import get_event_publisher, EventType
 from ..tracer import trace_section, trace_input, trace_parse, trace_step, trace_pass, trace_output
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["chat"])
@@ -44,6 +45,10 @@ async def chat(
     4. Generates response
     5. Ingests new memories from the message
     """
+    # Generate turn ID for grouping events
+    turn_id = str(uuid.uuid4())[:8]
+    publisher = get_event_publisher()
+    
     # -- TRACE: Start of chat request --
     trace_section("Chat Request")
     trace_input("api.chat", "message", data.message)
@@ -61,7 +66,7 @@ async def chat(
     
     trace_parse("api.chat", f"Found project: {project.name}")
     
-    # Generate response
+    # Generate response (events are published inside reasoning engine)
     trace_section("Response Generation")
     trace_pass("api.chat", "engine.reasoning", "message + mode")
     
@@ -70,11 +75,12 @@ async def chat(
         project_id=project_id,
         message=data.message,
         mode=data.mode,
+        turn_id=turn_id,  # Pass turn_id for event publishing
     )
     
     trace_output("engine.reasoning", "response", response.assistant_text)
     
-    # Ingest message for memory extraction
+    # Ingest message for memory extraction (events are published inside ingestion pipeline)
     trace_section("Memory Ingestion")
     trace_pass("api.chat", "memory.ingestion", "message for extraction")
     
@@ -88,12 +94,19 @@ async def chat(
         message=data.message,
         message_id=message_id,
         project_context=project_context,
+        turn_id=turn_id,  # Pass turn_id for event publishing
     )
     
     trace_output("memory.ingestion", "memories_created", f"{len(created_memories)} memories")
     
     # Update response with created memories
     response.memories_created = [m.id for m in created_memories]
+    
+    # Publish: complete with memory IDs for citation pills
+    await publisher.publish(
+        project_id, EventType.COMPLETE, "Complete", turn_id,
+        data={"memory_ids": [m.id for m in created_memories]}
+    )
     
     trace_section("Chat Complete")
     trace_output("api.chat", "final_response", response.assistant_text)

@@ -208,6 +208,7 @@ class IngestionPipeline:
         message: str,
         message_id: str,
         project_context: str = "",
+        turn_id: str = None,
     ) -> List[MemoryAtom]:
         """
         Ingest a chat message.
@@ -217,10 +218,14 @@ class IngestionPipeline:
             message: The message text
             message_id: Unique ID for this message
             project_context: Optional project context for extraction
+            turn_id: Optional turn ID for event publishing
             
         Returns:
             List of created MemoryAtom objects
         """
+        from ..events import get_event_publisher, EventType
+        publisher = get_event_publisher()
+        
         created_memories = []
         
         # Step 1: Create evidence chunks
@@ -243,12 +248,26 @@ class IngestionPipeline:
         ))
         
         # Step 2: Extract memory candidates
+        # Publish: extracting (before LLM call)
+        if turn_id:
+            await publisher.publish(
+                project_id, EventType.EXTRACTING,
+                "Extracting memory candidates...", turn_id
+            )
+        
         trace_call("memory.ingestion", "_extract_memory_candidates (LLM)")
         candidates = await self._extract_memory_candidates(
             message=message,
             project_context=project_context,
         )
         trace_result("memory.ingestion", "_extract_memory_candidates", True, f"{len(candidates)} candidates")
+        
+        # Publish: candidates created
+        if turn_id and candidates:
+            await publisher.publish(
+                project_id, EventType.CANDIDATES_CREATED,
+                f"{len(candidates)} memory candidates extracted", turn_id
+            )
         
         # Step 3: Apply write gate
         trace_call("memory.ingestion", "_apply_write_gate")
@@ -260,7 +279,24 @@ class IngestionPipeline:
             await self.db.commit()
             return []
         
+        # Publish: classified
+        if turn_id:
+            types = list(set(c.type.value for c in candidates))
+            await publisher.publish(
+                project_id, EventType.CLASSIFIED,
+                f"Classified as {', '.join(types)}", turn_id
+            )
+        
         # Step 4-6: Process each candidate
+        merged_count = 0
+        
+        # Publish: running deduplication (before first dedup check)
+        if turn_id and len(candidates) > 0:
+            await publisher.publish(
+                project_id, EventType.DEDUP_RUNNING,
+                "Running deduplication...", turn_id
+            )
+        
         for i, candidate in enumerate(candidates):
             trace_step("memory.ingestion", f"Processing candidate {i+1}/{len(candidates)}: {candidate.type.value}")
             
@@ -292,6 +328,7 @@ class IngestionPipeline:
                     entity_type="memory",
                     message=f"Merged duplicate: {new_details or 'no new details added'}",
                 ))
+                merged_count += 1
                 continue
             
             # Create new memory
@@ -361,6 +398,20 @@ class IngestionPipeline:
                     message=f"Conflict detected with memory {conflict['other_id']}: {conflict['explanation']}",
                     extra_data=json.dumps(conflict),
                 ))
+        
+        # Publish: duplicates merged
+        if turn_id and merged_count > 0:
+            await publisher.publish(
+                project_id, EventType.DEDUP_FOUND,
+                f"{merged_count} duplicate(s) merged", turn_id
+            )
+        
+        # Publish: memories saved
+        if turn_id and created_memories:
+            await publisher.publish(
+                project_id, EventType.MEMORIES_SAVED,
+                f"{len(created_memories)} memories saved", turn_id
+            )
         
         await self.db.commit()
         return created_memories

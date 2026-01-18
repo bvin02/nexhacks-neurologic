@@ -44,12 +44,18 @@ If they ARE duplicates, create a merged_statement that:
 - Keeps similar length to Memory A
 - Never loses information from either
 
-Respond as JSON:
+Respond as strict JSON.
+Rules:
+1. Return valid JSON only. NO markdown blocks (```json).
+2. Escape all quotes within strings.
+3. No newlines inside string values.
+
+Expected format:
 {{
-  "is_duplicate": true | false,
+  "is_duplicate": true,
   "merged_statement": "Combined statement preserving all details (required if duplicate)",
   "new_details_found": "What new details from B were integrated, or 'none' if B added nothing new",
-  "confidence": 0.0-1.0
+  "confidence": 0.8
 }}"""
 
 
@@ -66,7 +72,7 @@ Rules:
 6. NEVER lose information from either statement
 7. If the new statement adds nothing new, return the existing statement unchanged
 
-Respond with valid JSON only."""
+Respond with valid JSON only. No markdown."""
 
 MERGE_MEMORIES_PROMPT = """Merge these two memory statements into one unified statement.
 
@@ -75,9 +81,15 @@ NEW (additions): {new_statement}
 
 Identify what's new in the NEW statement and integrate it into the EXISTING statement.
 
-Respond as JSON:
+Respond as strict JSON.
+Rules:
+1. Return valid JSON only. NO markdown blocks (```json).
+2. Escape all quotes within strings.
+3. No newlines inside string values.
+
+Expected format:
 {{
   "merged_statement": "The combined statement",
   "changes_made": "Brief description of what was added from NEW, or 'none'",
-  "kept_meaning": true | false
+  "kept_meaning": true
 }}"""

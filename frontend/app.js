@@ -68,7 +68,108 @@ const elements = {
     taskModal: document.getElementById('task-modal'),
     taskDescriptionInput: document.getElementById('task-description-input'),
     beginTaskBtn: document.getElementById('begin-task-btn'),
+
+    // Observability Panel
+    observabilityNotifications: document.getElementById('observability-notifications'),
 };
+
+// SSE Event Source (for real-time pipeline notifications)
+let eventSource = null;
+let currentTurnId = null;
+
+function connectToEventStream(projectId) {
+    // Close existing connection
+    if (eventSource) {
+        eventSource.close();
+    }
+
+    eventSource = new EventSource(`${API_BASE}/projects/${projectId}/events`);
+
+    eventSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            handlePipelineEvent(data);
+        } catch (e) {
+            console.error('Failed to parse SSE event:', e);
+        }
+    };
+
+    eventSource.onerror = (error) => {
+        console.log('SSE connection error, will retry...', error);
+    };
+}
+
+function disconnectEventStream() {
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+}
+
+function handlePipelineEvent(event) {
+    if (!elements.observabilityNotifications) return;
+
+    // Skip connection events
+    if (event.event_type === 'connected') return;
+
+    // Clear old notifications only if new turn starts (turn_id changes)
+    if (currentTurnId && event.turn_id && event.turn_id !== currentTurnId) {
+        // Immediately clear for new turn
+        elements.observabilityNotifications.innerHTML = '';
+    }
+    currentTurnId = event.turn_id;
+
+    // Create notification tile
+    const tile = document.createElement('div');
+    tile.className = `notification-tile ${event.event_type}`;
+
+    // Add message text
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = event.message;
+    tile.appendChild(messageSpan);
+
+    // For complete events, add memory citation pills or "no new memories" message
+    if (event.event_type === 'complete') {
+        if (event.data?.memory_ids?.length > 0) {
+            const pillsContainer = document.createElement('div');
+            pillsContainer.className = 'notification-pills';
+
+            event.data.memory_ids.forEach(memId => {
+                const pill = document.createElement('span');
+                pill.className = 'citation-link';
+                pill.textContent = memId.substring(0, 8);
+                pill.onclick = () => navigateToMemory(memId);
+                pillsContainer.appendChild(pill);
+            });
+
+            tile.appendChild(pillsContainer);
+        } else {
+            // No memories created
+            const noMemSpan = document.createElement('div');
+            noMemSpan.className = 'notification-note';
+            noMemSpan.textContent = 'No new memories created';
+            tile.appendChild(noMemSpan);
+        }
+    }
+
+    // Add connector if not first
+    if (elements.observabilityNotifications.children.length > 0) {
+        const connector = document.createElement('div');
+        connector.className = 'notification-connector';
+        elements.observabilityNotifications.appendChild(connector);
+    }
+
+    elements.observabilityNotifications.appendChild(tile);
+
+    // Scroll to bottom
+    elements.observabilityNotifications.scrollTop = elements.observabilityNotifications.scrollHeight;
+}
+
+function fadeOutOldNotifications() {
+    if (!elements.observabilityNotifications) return;
+    elements.observabilityNotifications.innerHTML = '';
+    currentTurnId = null;
+}
 
 // ================================================
 // API Functions
@@ -786,6 +887,9 @@ async function selectProject(projectId) {
         resetProjectChat();
         await checkForActiveWorkSession();
         loadLedger();
+
+        // Connect to SSE for real-time pipeline notifications
+        connectToEventStream(projectId);
 
     } catch (error) {
         console.error('Failed to load project:', error);

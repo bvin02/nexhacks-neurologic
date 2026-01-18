@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import init_db, close_db
 from .config import settings
 from .api import projects_router, chat_router, memory_router, ops_router, work_router
+from .api.events import router as events_router
 from .tracer import setup_follow_through_logging
 
 # Configure logging based on mode
@@ -105,6 +106,7 @@ app.include_router(chat_router)
 app.include_router(memory_router)
 app.include_router(ops_router)
 app.include_router(work_router)
+app.include_router(events_router)
 
 
 @app.get("/")
