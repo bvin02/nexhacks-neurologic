@@ -1614,6 +1614,74 @@ body {
     word-break: break-word;
 }
 
+/* Project Chat Markdown Styles */
+.project-chat-message.assistant.markdown-body {
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.project-chat-message.assistant.markdown-body p {
+    margin: 0 0 0.5em 0;
+}
+
+.project-chat-message.assistant.markdown-body p:last-child {
+    margin-bottom: 0;
+}
+
+.project-chat-message.assistant.markdown-body h1,
+.project-chat-message.assistant.markdown-body h2,
+.project-chat-message.assistant.markdown-body h3 {
+    font-size: 0.95rem;
+    margin: 0.75em 0 0.25em 0;
+    color: var(--text-primary);
+}
+
+.project-chat-message.assistant.markdown-body ul,
+.project-chat-message.assistant.markdown-body ol {
+    margin: 0.25em 0;
+    padding-left: 1.25em;
+}
+
+.project-chat-message.assistant.markdown-body code {
+    background: var(--bg-secondary);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    color: var(--primary-cyan);
+}
+
+.project-chat-message.assistant.markdown-body pre {
+    background: var(--bg-secondary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 0.5em 0;
+    font-size: 0.8rem;
+}
+
+.project-chat-message.assistant.markdown-body pre code {
+    background: none;
+    padding: 0;
+    color: var(--text-primary);
+}
+
+/* Project Chat Citation Pills - White Theme */
+.project-chat-message.assistant .citation-link {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.4);
+    color: var(--text-primary);
+}
+
+.project-chat-message.assistant .citation-link:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.2);
+}
+
+.project-chat-message.assistant .citation-link::before {
+    content: '';
+}
+
 /* ================================================
    Work Chat System Message
    ================================================ */
@@ -1760,6 +1828,82 @@ body {
 .message-content.markdown-body th {
     background: var(--bg-tertiary);
     font-weight: 600;
+}
+
+/* ================================================
+   Citation Pills
+   ================================================ */
+
+.citation-link {
+    display: inline-block;
+    padding: 2px 10px;
+    background: rgba(0, 240, 255, 0.15);
+    border: 1px solid rgba(0, 240, 255, 0.4);
+    border-radius: 20px;
+    color: var(--primary-cyan);
+    font-size: 0.8em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    margin: 0 2px;
+    white-space: nowrap;
+}
+
+.citation-link:hover {
+    background: rgba(0, 240, 255, 0.25);
+    border-color: var(--primary-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.citation-link::before {
+    content: '📌 ';
+    font-size: 0.9em;
+}
+
+/* Message Sources Section */
+.message-sources {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-md);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-subtle);
+}
+
+.sources-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+    margin-right: var(--spacing-xs);
+}
+
+/* Memory card highlight animation */
+.memory-card.highlighted {
+    animation: memoryHighlight 2s ease-out;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+    border-color: var(--primary-cyan);
+}
+
+@keyframes memoryHighlight {
+    0% {
+        box-shadow: 0 0 30px rgba(0, 240, 255, 0.8);
+        background: rgba(0, 240, 255, 0.1);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.5);
+        background: rgba(0, 240, 255, 0.05);
+    }
+
+    100% {
+        box-shadow: var(--shadow-md);
+        background: var(--bg-elevated);
+    }
 }
 
 /* ================================================

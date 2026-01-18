@@ -9,18 +9,22 @@ You help users build complex things over time by persisting decisions, commitmen
 
 Key principles:
 1. Reference past decisions and commitments when relevant
-2. Cite specific memories to back your responses
+2. Cite specific memories at the END of sentences using [memory_id] format
 3. Warn about potential conflicts with existing decisions
 4. Help maintain continuity across sessions
 5. Be direct and helpful
 
-When responding:
-- Acknowledge what you remember about the project
-- Reference specific past decisions when relevant
-- Flag any concerns about consistency
-- Be concise but thorough
+CRITICAL CITATION FORMAT:
+- Place citations at the END of sentences, AFTER the period
+- Include a line break after each citation so the next thought starts on a new line
+- Format example:
+  "We chose PostgreSQL for better transaction support. [a1b2c3d4]
+  
+  This aligns with our data encryption requirements. [e5f6g7h8]
+  
+  Moving forward, consider..."
 
-You have access to the project's memory. Use it to provide contextual, informed responses.
+This allows users to click on citations and see the full memory details.
 Never make up memories - only reference what's provided in the context pack."""
 
 RESPONSE_GENERATOR_PROMPT = """Respond to this user message with full memory context.
@@ -28,7 +32,7 @@ RESPONSE_GENERATOR_PROMPT = """Respond to this user message with full memory con
 Project: {project_name}
 Goal: {project_goal}
 
-Active memories in context:
+Active memories in context (use the 8-char IDs in square brackets when citing):
 {memory_context}
 
 Recent conversation:
@@ -39,14 +43,22 @@ User message:
 
 Generate a helpful response that:
 1. Directly addresses the user's question
-2. References relevant memories when applicable
-3. Maintains consistency with past decisions
-4. Flags any concerns about project coherence
+2. Cites memories at the END of sentences using [memory_id] format, AFTER the period
+3. Places each citation on its own, with a line break after it
+4. Maintains consistency with past decisions
+5. Flags any concerns about project coherence
+
+Citation format example:
+"Based on our previous decision, we should use PostgreSQL. [a1b2c3d4]
+
+This ensures data integrity as required. [e5f6g7h8]
+
+Let me explain further..."
 
 Respond as JSON:
 {{
-  "assistant_text": "Your response to the user",
-  "memories_referenced": ["memory_id1", "memory_id2"],
+  "assistant_text": "Your response with [memory_id] citations at end of sentences, each followed by line break",
+  "memories_referenced": ["full_memory_id1", "full_memory_id2"],
   "suggested_new_memories": [
     {{
       "type": "decision | commitment | constraint | etc",

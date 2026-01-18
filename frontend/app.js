@@ -312,12 +312,37 @@ async function sendProjectChatMessage() {
 }
 
 function displayProjectChatPair(pair) {
+    // Render markdown using marked.js
+    const renderMarkdown = (text) => {
+        if (typeof marked !== 'undefined' && marked.parse) {
+            return marked.parse(text);
+        }
+        return escapeHtml(text).replace(/\n/g, '<br>');
+    };
+
+    // Convert inline citation patterns [8-char-id] to clickable pills
+    const linkifyInlineCitations = (html, memoriesUsed = []) => {
+        // Match 8-character hex IDs in brackets like [a1b2c3d4]
+        // Also match type patterns like [DECISION], [CONSTRAINT-1]
+        const citationPattern = /\[([a-f0-9]{8}|[A-Z]+(?:-\d+)?)\]/g;
+
+        return html.replace(citationPattern, (match, content) => {
+            // Find the full memory ID if we have a short ID
+            const fullId = memoriesUsed.find(id => id.startsWith(content)) || content;
+            // Add line break after citation for paragraph separation
+            return `<span class="citation-link" onclick="navigateToMemory('${fullId}')">${content}</span><br><br>`;
+        });
+    };
+
+    const memoriesUsed = pair.debug?.memory_used || [];
+    const assistantHtml = linkifyInlineCitations(renderMarkdown(pair.assistant), memoriesUsed);
+
     elements.projectChatMessages.innerHTML = `
         <div class="project-chat-message user">
             <div class="message-text">${escapeHtml(pair.user)}</div>
         </div>
-        <div class="project-chat-message assistant">
-            <div class="message-text">${escapeHtml(pair.assistant)}</div>
+        <div class="project-chat-message assistant markdown-body">
+            ${assistantHtml}
         </div>
     `;
 }
@@ -479,15 +504,19 @@ async function sendWorkMessage() {
 
         removeWorkTypingIndicator(typingId);
 
-        // Add assistant message
-        state.workMessages.push({ role: 'assistant', content: response.assistant_text });
+        // Add assistant message with memory IDs
+        state.workMessages.push({
+            role: 'assistant',
+            content: response.assistant_text,
+            memoriesUsed: response.debug?.memory_used || [],
+        });
         state.lastDebugInfo = response.debug;
 
         renderWorkMessages();
 
     } catch (error) {
         removeWorkTypingIndicator(typingId);
-        state.workMessages.push({ role: 'assistant', content: 'Sorry, an error occurred. Please try again.' });
+        state.workMessages.push({ role: 'assistant', content: 'Sorry, an error occurred. Please try again.', memoriesUsed: [] });
         renderWorkMessages();
         console.error('Work chat error:', error);
     }
@@ -501,6 +530,32 @@ function renderWorkMessages() {
         }
         // Fallback if marked is not loaded
         return escapeHtml(text).replace(/\n/g, '<br>');
+    };
+
+    // Convert citation patterns like [DECISION], [CONSTRAINT], [COMMITMENT] etc. to clickable pills
+    const linkifyCitations = (html) => {
+        // Match patterns like [DECISION], [CONSTRAINT-1], [d1234...], [memory text], etc.
+        // Look for square brackets with memory type keywords or UUIDs
+        const citationPattern = /\[([A-Z]+(?:-\d+)?|[a-f0-9-]{8,36}|[A-Z][a-z]+(?:\s+[A-Za-z]+)*)\]/g;
+
+        return html.replace(citationPattern, (match, content) => {
+            // Check if this looks like a memory type or reference
+            const memoryTypes = ['DECISION', 'COMMITMENT', 'CONSTRAINT', 'GOAL', 'FAILURE', 'ASSUMPTION', 'EXCEPTION', 'PREFERENCE', 'BELIEF'];
+            const upperContent = content.toUpperCase();
+
+            // Check if it starts with a memory type
+            const isMemoryType = memoryTypes.some(type => upperContent.startsWith(type));
+
+            // Check if it looks like a UUID
+            const isUUID = /^[a-f0-9-]{8,36}$/i.test(content);
+
+            if (isMemoryType || isUUID) {
+                return `<span class="citation-link" onclick="navigateToMemory('${escapeHtml(content)}')">${escapeHtml(content)}</span>`;
+            }
+
+            // Return original if not a citation
+            return match;
+        });
     };
 
     const html = state.workMessages.map((msg, idx) => {
@@ -526,17 +581,27 @@ function renderWorkMessages() {
             `;
         }
 
-        // Assistant message - render markdown
+        // Assistant message - render markdown and linkify citations
         const isLastMessage = idx === state.workMessages.length - 1;
         const showMeta = isLastMessage && state.lastDebugInfo;
+        const renderedContent = linkifyCitations(renderMarkdown(msg.content));
+        const memoriesUsed = msg.memoriesUsed || [];
+
+        // Build memory pills HTML
+        const memoryPillsHtml = memoriesUsed.length > 0 ? `
+            <div class="message-sources">
+                <span class="sources-label">Sources:</span>
+                ${memoriesUsed.map(memId => `<span class="citation-link" onclick="navigateToMemory('${memId}')">${memId.substring(0, 8)}</span>`).join('')}
+            </div>
+        ` : '';
 
         return `
             <div class="message assistant">
                 <div class="message-content markdown-body">
-                    ${renderMarkdown(msg.content)}
+                    ${renderedContent}
+                    ${memoryPillsHtml}
                     ${showMeta ? `
                         <div class="message-meta">
-                            <span>${state.lastDebugInfo.memory_used?.length || 0} memories used</span>
                             <button class="why-btn" onclick="openWhyDrawer()">Why?</button>
                         </div>
                     ` : ''}
@@ -884,7 +949,7 @@ function renderLedger(filter = 'all') {
     }
 
     elements.ledgerContent.innerHTML = memories.map(memory => `
-        <div class="memory-card" onclick="openMemoryDetail('${memory.id}')">
+        <div class="memory-card" id="memory-${memory.id}" onclick="openMemoryDetail('${memory.id}')">
             <div class="memory-card-header">
                 <span class="memory-type-badge ${memory.type}">${memory.type}</span>
                 <span class="memory-status ${memory.status}">${memory.status}</span>
@@ -996,6 +1061,108 @@ function renderTimeline() {
             </div>
         </div>
     `).join('');
+}
+
+// ================================================
+// Citation Navigation
+// ================================================
+
+async function navigateToMemory(citationText) {
+    if (!state.currentProject) {
+        showToast('No project selected', 'error');
+        return;
+    }
+
+    // Load ledger if not loaded
+    if (!state.ledger) {
+        await loadLedger();
+    }
+
+    // Find memory by citation text
+    // Citation could be like "DECISION", "DECISION-1", or a UUID
+    const allMemories = [
+        ...state.ledger.decisions,
+        ...state.ledger.commitments,
+        ...state.ledger.constraints,
+        ...state.ledger.goals,
+        ...state.ledger.failures,
+        ...state.ledger.assumptions,
+        ...state.ledger.exceptions,
+        ...state.ledger.preferences,
+        ...state.ledger.beliefs,
+    ];
+
+    // Try to find matching memory
+    let targetMemory = null;
+    const upperCitation = citationText.toUpperCase();
+
+    // Check for exact UUID match first
+    targetMemory = allMemories.find(m => m.id === citationText || m.id.startsWith(citationText));
+
+    // Check for type+number pattern like "DECISION-1"
+    if (!targetMemory) {
+        const typeMatch = upperCitation.match(/^([A-Z]+)(?:-(\d+))?$/);
+        if (typeMatch) {
+            const memType = typeMatch[1].toLowerCase();
+            const memIndex = typeMatch[2] ? parseInt(typeMatch[2]) - 1 : 0;
+
+            const typeMap = {
+                'decision': state.ledger.decisions,
+                'commitment': state.ledger.commitments,
+                'constraint': state.ledger.constraints,
+                'goal': state.ledger.goals,
+                'failure': state.ledger.failures,
+                'assumption': state.ledger.assumptions,
+                'exception': state.ledger.exceptions,
+                'preference': state.ledger.preferences,
+                'belief': state.ledger.beliefs,
+            };
+
+            const typeMemories = typeMap[memType];
+            if (typeMemories && typeMemories.length > memIndex) {
+                targetMemory = typeMemories[memIndex];
+            }
+        }
+    }
+
+    if (!targetMemory) {
+        showToast(`Could not find memory: ${citationText}`, 'error');
+        return;
+    }
+
+    // Switch to ledger view
+    switchView('ledger');
+
+    // Wait for DOM to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Reset filter to show all memories
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.filter-btn[data-type="all"]')?.classList.add('active');
+    renderLedger('all');
+
+    // Wait for render
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Find and scroll to the memory card
+    const memoryCard = document.getElementById(`memory-${targetMemory.id}`);
+    if (memoryCard) {
+        // Remove any previous highlights
+        document.querySelectorAll('.memory-card.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+        });
+
+        // Scroll to the card
+        memoryCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Add highlight
+        memoryCard.classList.add('highlighted');
+
+        // Remove highlight after animation
+        setTimeout(() => {
+            memoryCard.classList.remove('highlighted');
+        }, 2500);
+    }
 }
 
 // ================================================
