@@ -125,11 +125,127 @@ function handlePipelineEvent(event) {
 
     // Add message text
     const messageSpan = document.createElement('span');
+    messageSpan.className = 'notification-message';
     messageSpan.textContent = event.message;
     tile.appendChild(messageSpan);
 
-    // For complete events, add memory citation pills or "no new memories" message
-    if (event.event_type === 'complete') {
+    // Add context based on event type
+    const contextDiv = document.createElement('div');
+    contextDiv.className = 'notification-context';
+    
+    switch (event.event_type) {
+        case 'intent_classified':
+            if (event.data) {
+                const badges = [];
+                if (event.data.requires_memory) badges.push('Memory');
+                if (event.data.requires_enforcement) badges.push('Enforcement');
+                if (badges.length > 0) {
+                    contextDiv.innerHTML = `<span class="notification-badges">${badges.join(' • ')}</span>`;
+                    tile.appendChild(contextDiv);
+                }
+            }
+            break;
+            
+        case 'memories_retrieved':
+            if (event.data?.previews?.length > 0) {
+                const previewsHtml = event.data.previews.map(p => 
+                    `<div class="memory-preview">
+                        <span class="memory-type-badge">${p.type}</span>
+                        <span class="memory-text">${escapeHtml(p.preview)}</span>
+                    </div>`
+                ).join('');
+                contextDiv.innerHTML = previewsHtml;
+                tile.appendChild(contextDiv);
+            }
+            // Add memory ID pills
+            if (event.data?.memory_ids?.length > 0) {
+                const pillsContainer = document.createElement('div');
+                pillsContainer.className = 'notification-pills';
+                event.data.memory_ids.slice(0, 5).forEach(memId => {
+                    const pill = document.createElement('span');
+                    pill.className = 'citation-link';
+                    pill.textContent = memId.substring(0, 8);
+                    pill.onclick = () => navigateToMemory(memId);
+                    pillsContainer.appendChild(pill);
+                });
+                if (event.data.memory_ids.length > 5) {
+                    const more = document.createElement('span');
+                    more.className = 'notification-note';
+                    more.textContent = `+${event.data.memory_ids.length - 5} more`;
+                    pillsContainer.appendChild(more);
+                }
+                tile.appendChild(pillsContainer);
+            }
+            break;
+            
+        case 'candidates_created':
+            if (event.data?.previews?.length > 0) {
+                const previewsHtml = event.data.previews.map(p => 
+                    `<div class="memory-preview">
+                        <span class="memory-type-badge">${p.type}</span>
+                        <span class="memory-text">${escapeHtml(p.preview)}</span>
+                    </div>`
+                ).join('');
+                contextDiv.innerHTML = previewsHtml;
+                tile.appendChild(contextDiv);
+            }
+            break;
+            
+        case 'classified':
+            if (event.data?.type_counts) {
+                const countsHtml = Object.entries(event.data.type_counts)
+                    .map(([type, count]) => `<span class="type-count-badge">${type}: ${count}</span>`)
+                    .join('');
+                contextDiv.innerHTML = `<div class="type-counts">${countsHtml}</div>`;
+                tile.appendChild(contextDiv);
+            }
+            break;
+            
+        case 'generating':
+            if (event.data?.model_tier) {
+                const tierLabel = event.data.model_tier === 'cheap' ? 'quick' : event.data.model_tier;
+                contextDiv.innerHTML = `<span class="model-tier-badge">${tierLabel} model</span>`;
+                tile.appendChild(contextDiv);
+            }
+            break;
+            
+        case 'dedup_found':
+            // Show preview and clickable memory ID pill
+            if (event.data) {
+                if (event.data.preview) {
+                    const previewHtml = `<div class="memory-preview">
+                        <span class="memory-type-badge">${event.data.type || 'memory'}</span>
+                        <span class="memory-text">${escapeHtml(event.data.preview)}</span>
+                    </div>`;
+                    contextDiv.innerHTML = previewHtml;
+                    tile.appendChild(contextDiv);
+                }
+                // Add clickable pill to navigate to the merged memory
+                if (event.data.memory_id) {
+                    const pillsContainer = document.createElement('div');
+                    pillsContainer.className = 'notification-pills';
+                    const pill = document.createElement('span');
+                    pill.className = 'citation-link';
+                    pill.textContent = event.data.memory_id.substring(0, 8);
+                    pill.onclick = () => navigateToMemory(event.data.memory_id);
+                    pillsContainer.appendChild(pill);
+                    tile.appendChild(pillsContainer);
+                }
+            }
+            break;
+            
+        case 'summary_generated':
+            if (event.data?.summary_preview) {
+                const previewSpan = document.createElement('div');
+                previewSpan.className = 'notification-note';
+                previewSpan.textContent = event.data.summary_preview;
+                tile.appendChild(previewSpan);
+            }
+            break;
+    }
+
+    // For complete events and session_complete events, add memory citation pills
+    if (event.event_type === 'complete' || event.event_type === 'session_complete') {
         if (event.data?.memory_ids?.length > 0) {
             const pillsContainer = document.createElement('div');
             pillsContainer.className = 'notification-pills';

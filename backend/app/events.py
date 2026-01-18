@@ -29,6 +29,12 @@ class EventType(str, Enum):
     MEMORIES_SAVED = "memories_saved"
     COMPLETE = "complete"
     ERROR = "error"
+    
+    # Work session events
+    SESSION_ENDING = "session_ending"
+    SUMMARIZING = "summarizing"
+    SUMMARY_GENERATED = "summary_generated"
+    SESSION_COMPLETE = "session_complete"
 
 
 @dataclass

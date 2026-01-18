@@ -118,11 +118,17 @@ class ReasoningEngine:
         intent = await self.intent_router.classify(message)
         trace_result("engine.reasoning", "IntentRouter.classify", True, f"intent={intent.intent}, enforcement={intent.requires_enforcement}")
         
-        # Publish: intent classified
+        # Publish: intent classified with context
         if publisher:
             await publisher.publish(
                 project_id, EventType.INTENT_CLASSIFIED,
-                f"Intent: {intent.intent}", turn_id
+                f"Intent: {intent.intent}", turn_id,
+                data={
+                    "intent": intent.intent,
+                    "confidence": intent.confidence,
+                    "requires_memory": intent.requires_memory,
+                    "requires_enforcement": intent.requires_enforcement,
+                }
             )
         
         # Determine tier based on mode
@@ -190,11 +196,27 @@ class ReasoningEngine:
         )
         trace_result("engine.reasoning", "RetrievalPipeline.build_context_pack", True, f"{len(context_pack['memory_ids'])} memories retrieved")
         
-        # Publish: memories retrieved
+        # Publish: memories retrieved with previews
         if publisher:
+            # Get top memory previews for display
+            memory_previews = []
+            for mem_type, mems in context_pack.get("memories_by_type", {}).items():
+                for mem in mems[:2]:  # Top 2 per type
+                    stmt_preview = mem['statement'][:60] + "..." if len(mem['statement']) > 60 else mem['statement']
+                    memory_previews.append({
+                        "type": mem_type,
+                        "preview": stmt_preview,
+                        "id": mem['id'][:8]
+                    })
+            
             await publisher.publish(
                 project_id, EventType.MEMORIES_RETRIEVED,
-                f"{len(context_pack['memory_ids'])} relevant memories found", turn_id
+                f"{len(context_pack['memory_ids'])} relevant memories found", turn_id,
+                data={
+                    "count": len(context_pack['memory_ids']),
+                    "memory_ids": context_pack['memory_ids'],
+                    "previews": memory_previews[:4]  # Top 4 previews
+                }
             )
         
         memory_context = await self._format_memory_context(
@@ -207,11 +229,12 @@ class ReasoningEngine:
         if recent_messages:
             recent_text = "\n".join(recent_messages[-5:])
         
-        # Publish: generating response
+        # Publish: generating response with model info
         if publisher:
             await publisher.publish(
                 project_id, EventType.GENERATING,
-                "Generating response...", turn_id
+                "Generating response...", turn_id,
+                data={"model_tier": tier.value}
             )
         
         # Generate response

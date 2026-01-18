@@ -262,11 +262,20 @@ class IngestionPipeline:
         )
         trace_result("memory.ingestion", "_extract_memory_candidates", True, f"{len(candidates)} candidates")
         
-        # Publish: candidates created
+        # Publish: candidates created with previews
         if turn_id and candidates:
+            candidate_previews = [
+                {
+                    "type": c.type.value,
+                    "preview": c.canonical_statement[:50] + "..." if len(c.canonical_statement) > 50 else c.canonical_statement,
+                    "importance": c.importance
+                }
+                for c in candidates[:3]  # Top 3 previews
+            ]
             await publisher.publish(
                 project_id, EventType.CANDIDATES_CREATED,
-                f"{len(candidates)} memory candidates extracted", turn_id
+                f"{len(candidates)} memory candidates extracted", turn_id,
+                data={"count": len(candidates), "previews": candidate_previews}
             )
         
         # Step 3: Apply write gate
@@ -279,12 +288,16 @@ class IngestionPipeline:
             await self.db.commit()
             return []
         
-        # Publish: classified
+        # Publish: classified with type breakdown
         if turn_id:
             types = list(set(c.type.value for c in candidates))
+            type_counts = {}
+            for c in candidates:
+                type_counts[c.type.value] = type_counts.get(c.type.value, 0) + 1
             await publisher.publish(
                 project_id, EventType.CLASSIFIED,
-                f"Classified as {', '.join(types)}", turn_id
+                f"Classified as {', '.join(types)}", turn_id,
+                data={"types": types, "type_counts": type_counts}
             )
         
         # Step 4-6: Process each candidate
@@ -328,6 +341,19 @@ class IngestionPipeline:
                     entity_type="memory",
                     message=f"Merged duplicate: {new_details or 'no new details added'}",
                 ))
+                
+                # Publish: dedup found with memory ID for navigation
+                if turn_id:
+                    await publisher.publish(
+                        project_id, EventType.DEDUP_FOUND,
+                        f"Merged into existing memory", turn_id,
+                        data={
+                            "memory_id": existing_id,
+                            "type": candidate.type.value,
+                            "preview": merged_stmt[:50] + "..." if len(merged_stmt) > 50 else merged_stmt
+                        }
+                    )
+                
                 merged_count += 1
                 continue
             

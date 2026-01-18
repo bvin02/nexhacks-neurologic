@@ -34,6 +34,7 @@ from ..engine.session_summarizer import SessionSummarizer
 from ..llm import get_llm_provider, get_model_for_task
 from ..prompts.response import RESPONSE_GENERATOR_SYSTEM
 from ..tracer import trace_section, trace_input, trace_parse, trace_step, trace_pass, trace_output, trace_call, trace_result
+from ..events import get_event_publisher, EventType
 
 logger = logging.getLogger(__name__)
 
@@ -364,10 +365,21 @@ async def end_work_session(
     3. Runs the ingestion pipeline on the summary
     4. Marks the session as completed
     """
+    # Generate turn ID for event grouping
+    turn_id = str(uuid.uuid4())[:8]
+    publisher = get_event_publisher()
+    
     # ── TRACE: End work session ──
     trace_section("Work Session End")
     trace_input("api.work", "session_id", session_id)
     trace_input("api.work", "project_id", project_id)
+    
+    # Publish: session ending
+    await publisher.publish(
+        project_id, EventType.SESSION_ENDING,
+        "Ending work session...", turn_id,
+        data={"session_id": session_id}
+    )
     
     # Get session with messages
     trace_step("api.work", "Loading session and full transcript")
@@ -386,6 +398,10 @@ async def end_work_session(
     session = result.scalar_one_or_none()
     
     if not session:
+        await publisher.publish(
+            project_id, EventType.ERROR,
+            "Work session not found", turn_id
+        )
         raise HTTPException(
             status_code=404,
             detail="Active work session not found"
@@ -402,6 +418,12 @@ async def end_work_session(
     trace_section("Session Summarization")
     summarizer = SessionSummarizer()
     
+    # Publish: summarizing
+    await publisher.publish(
+        project_id, EventType.SUMMARIZING,
+        f"Summarizing {len(session.messages)} messages...", turn_id
+    )
+    
     if data.summary:
         trace_step("api.work", "Using provided summary (override)")
         summary = data.summary
@@ -415,6 +437,13 @@ async def end_work_session(
     
     trace_output("api.work", "summary", summary[:100])
     
+    # Publish: summary generated
+    await publisher.publish(
+        project_id, EventType.SUMMARY_GENERATED,
+        "Session summary generated", turn_id,
+        data={"summary_preview": summary[:100] + "..." if len(summary) > 100 else summary}
+    )
+    
     # Run ingestion pipeline on the summary
     trace_section("Memory Ingestion")
     memories_created = []
@@ -427,11 +456,13 @@ async def end_work_session(
         pipeline = IngestionPipeline(db)
         project_context = f"Project: {project.name}\nGoal: {project.goal or 'Not set'}\nWork Session Task: {session.task_description}"
         
+        # Pass turn_id to ingestion pipeline for event publishing
         created = await pipeline.ingest_message(
             project_id=project_id,
             message=summary,
             message_id=f"session-{session_id}",
             project_context=project_context,
+            turn_id=turn_id,
         )
         memories_created = [m.id for m in created]
         
@@ -439,12 +470,24 @@ async def end_work_session(
         logger.info(f"Session {session_id} ended: created {len(memories_created)} memories")
     else:
         trace_step("api.work", "No durable content to ingest")
+        # Publish: no durable content
+        await publisher.publish(
+            project_id, EventType.CLASSIFIED,
+            "No durable content to save", turn_id
+        )
     
     # Mark session as completed
     trace_step("api.work", "Marking session as completed")
     session.status = SessionStatus.COMPLETED
     session.ended_at = datetime.utcnow()
     await db.commit()
+    
+    # Publish: session complete with memory IDs
+    await publisher.publish(
+        project_id, EventType.SESSION_COMPLETE,
+        f"Session complete - {len(memories_created)} memories created", turn_id,
+        data={"memory_ids": memories_created, "memories_created": len(memories_created)}
+    )
     
     trace_section("Work Session Complete")
     trace_output("api.work", "result", f"Created {len(memories_created)} memories from session")
