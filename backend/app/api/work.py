@@ -98,6 +98,7 @@ async def start_work_session(
         status=SessionStatus.ACTIVE,
     )
     db.add(session)
+    await db.flush()  # Flush to generate session.id
     
     # Add initial assistant message
     trace_step("api.work", "Adding welcome message to session")
