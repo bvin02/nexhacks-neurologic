@@ -1,7 +1,7 @@
-# Neurologic - united fragmented memory to power AI tools
+# Neurologic - uniting fragmented memory to power AI tools
 <div align="center">
 
-![NeuroLogic](https://img.shields.io/badge/DecisionOS-Turing%20City-00f0ff?style=for-the-badge)
+![NeuroLogic](https://img.shields.io/badge/NeuroLogic-Memory%20OS-00f0ff?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 
