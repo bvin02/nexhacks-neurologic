@@ -1,12 +1,11 @@
-# DecisionOS - Project Continuity Copilot
-
+# Neurologic - united fragmented memory to power AI tools
 <div align="center">
 
-![DecisionOS](https://img.shields.io/badge/DecisionOS-Turing%20City-00f0ff?style=for-the-badge)
+![NeuroLogic](https://img.shields.io/badge/DecisionOS-Turing%20City-00f0ff?style=for-the-badge)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776ab?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi&logoColor=white)
 
-**The operating system layer for long-running projects.**
+**The operating system layer for teams to share memory.**
 
 *Same model. Same prompt. Only memory changed.*
 
@@ -14,27 +13,19 @@
 
 ---
 
-## What is DecisionOS?
+## What is NeuroLogic?
 
-DecisionOS fixes a core failure of stateless LLMs: **they do not remember** why things were decided, what was tried before, or what constraints still apply.
+NeuroLogic fixes a core failure of stateless LLMs: **they do not remember** why things were decided, what was tried before, or what constraints still apply.
 
-DecisionOS introduces a **persistent cognitive layer** that:
+NeuroLogic introduces a **persistent cognitive layer** that:
 
-- ✓ Stores durable project memory
-- ✓ Governs future responses using that memory
-- ✓ Enforces commitments and decisions
-- ✓ Detects contradictions and regressions
-- ✓ Explains behavior with explicit evidence
+- Stores durable project memory
+- Governs future responses using that memory
+- Enforces commitments and decisions
+- Detects contradictions and regressions
+- Explains behavior with explicit evidence
 
 **This is not "ChatGPT with memory." This is a continuity operating system for building things.**
-
----
-
-## Turing City Theme
-
-Built for the **"Turing City"** hackathon theme - a futuristic city where Artificial General Intelligence is widespread.
-
-In Turing City, intelligence is not just generating answers. It is **continuity, governance, and accountability over time**.
 
 ---
 
@@ -49,7 +40,7 @@ In Turing City, intelligence is not just generating answers. It is **continuity,
 - **Assumptions**: Unstated assumptions made explicit
 
 ### 2. Enforcement Engine
-Before every response, DecisionOS checks against existing commitments and constraints. If you try to violate a past decision, the system **challenges you with citations**.
+Before every response, NeuroLogic checks against existing commitments and constraints. If you try to violate a past decision, the system **challenges you with citations**.
 
 ### 3. Memory Governance
 - Version history for all memories
@@ -72,7 +63,7 @@ Every answer includes debug metadata showing:
 
 - Python 3.11+
 - Node.js 18+ (for serving frontend)
-- OpenAI API key OR Google Gemini API key
+- Google Gemini API key
 
 ### 1. Clone and Setup
 
@@ -95,13 +86,10 @@ cp .env.example .env
 Edit `backend/.env`:
 
 ```env
-# Choose your provider: "openai" or "gemini"
-LLM_PROVIDER=openai
+# Choose your provider: "gemini"
+LLM_PROVIDER=gemini
 
-# OpenAI
-OPENAI_API_KEY=sk-your-key-here
-
-# OR Gemini
+# Gemini
 GEMINI_API_KEY=your-gemini-key-here
 ```
 
@@ -171,7 +159,7 @@ Navigate to `http://localhost:3000`
 ## Project Structure
 
 ```
-Antigravity-DecisionOS/
+NeuroLogic/
 ├── backend/
 │   ├── app/
 │   │   ├── api/          # FastAPI routes
@@ -230,7 +218,7 @@ Antigravity-DecisionOS/
 
 ### Why Not Just "ChatGPT with Memory"?
 
-| ChatGPT | DecisionOS |
+| ChatGPT | NeuroLogic |
 |---------|------------|
 | Memory is hidden | Memory is visible and governed |
 | Remembers facts | Remembers **commitments**, **constraints**, **decisions** |
@@ -255,18 +243,18 @@ Antigravity-DecisionOS/
 - **Embeddings**: text-embedding-3-small / Gemini embedding
 
 ---
-Tools Used: Gemini API, Token Company API, Devswarm, Google Antigravity IDE
+Tools Used: Gemini API, Token Company API, Google Antigravity IDE
 ---
 
 ## License
 
-MIT License - Built for NexHacks 2026
+MIT License
 
 ---
 
 <div align="center">
 
-**DecisionOS** - *The future of project continuity*
+**NeuroLogic** - *The future of project continuity*
 
 Same Model. Same Prompt. **Only Memory Changed.**
 
